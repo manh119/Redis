@@ -1,0 +1,28 @@
+# Binaries
+/server/server
+/client/client
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Test binaries
+*.test
+*.out
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go build cache
+.cache/
+
+# Environment files
+.env
+.env.local

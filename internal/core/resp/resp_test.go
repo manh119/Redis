@@ -1,10 +1,11 @@
 package resp_test
 
 import (
-	"fmt"	
+	"fmt"
+	"redis-clone/internal/core/resp"
 	"testing"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/manh/redis-clone/internal/core"
 )
 
 func TestSimpleStringDecode(t *testing.T) {
@@ -12,7 +13,7 @@ func TestSimpleStringDecode(t *testing.T) {
 		"+OK\r\n": "OK",
 	}
 	for k, v := range cases {
-		value, _ := core.Decode([]byte(k))
+		value, _ := resp.Decode([]byte(k))
 		if v != value {
 			t.Fail()
 		}
@@ -24,7 +25,7 @@ func TestError(t *testing.T) {
 		"-Error message\r\n": "Error message",
 	}
 	for k, v := range cases {
-		value, _ := core.Decode([]byte(k))
+		value, _ := resp.Decode([]byte(k))
 		if v != value {
 			t.Fail()
 		}
@@ -37,7 +38,7 @@ func TestInt64(t *testing.T) {
 		":1000\r\n": 1000,
 	}
 	for k, v := range cases {
-		value, _ := core.Decode([]byte(k))
+		value, _ := resp.Decode([]byte(k))
 		if v != value {
 			t.Fail()
 		}
@@ -50,7 +51,7 @@ func TestBulkStringDecode(t *testing.T) {
 		"$0\r\n\r\n":      "",
 	}
 	for k, v := range cases {
-		value, _ := core.Decode([]byte(k))
+		value, _ := resp.Decode([]byte(k))
 		if v != value {
 			t.Fail()
 		}
@@ -66,7 +67,7 @@ func TestArrayDecode(t *testing.T) {
 		"*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Hello\r\n-World\r\n": {[]int64{int64(1), int64(2), int64(3)}, []interface{}{"Hello", "World"}},
 	}
 	for k, v := range cases {
-		value, _ := core.Decode([]byte(k))
+		value, _ := resp.Decode([]byte(k))
 		array := value.([]interface{})
 		if len(array) != len(v) {
 			t.Fail()
@@ -81,9 +82,9 @@ func TestArrayDecode(t *testing.T) {
 
 func TestEncodeString2DArray(t *testing.T) {
 	var decode = [][]string{{"hello", "world"}, {"1", "2", "3"}, {"xyz"}}
-	encode := core.Encode(decode, false)
+	encode := resp.Encode(decode, false)
 	assert.EqualValues(t, "*3\r\n*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n*3\r\n$1\r\n1\r\n$1\r\n2\r\n$1\r\n3\r\n*1\r\n$3\r\nxyz\r\n", string(encode))
-	decodeAgain, _ := core.Decode(encode)
+	decodeAgain, _ := resp.Decode(encode)
 	for i := 0; i < 3; i++ {
 		for j := 0; j < len(decode[i]); j++ {
 			assert.EqualValues(t, decode[i][j], decodeAgain.([]interface{})[i].([]interface{})[j])

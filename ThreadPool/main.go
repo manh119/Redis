@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"net"
-	"time"
+	"syscall"
 )
 
 // element in the queue
@@ -64,22 +64,32 @@ func (p *Pool) Start() {
 }
 
 func handleConnection(conn net.Conn) {
+	log.Printf("New connection from %s in thread %d", conn.RemoteAddr(), getThreadID())
 	defer conn.Close()
-	buf := make([]byte, 1000)
-	conn.Read(buf)
-	time.Sleep(1 * time.Second)
-	conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\nEngineer Pro\r\n"))
+
+	buf := make([]byte, 4096)
+
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			return // client đóng connection
+		}
+
+		// ignore actual RESP parsing — just respond PONG
+		_ = n
+		conn.Write([]byte("+PONG\r\n"))
+	}
 }
 
 func main() {
-	listener, err := net.Listen("tcp", ":3000")
+	listener, err := net.Listen("tcp", ":3001")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer listener.Close()
 
 	// 1 pool with 2 threads
-	pool := NewPool(3)
+	pool := NewPool(200)
 	pool.Start()
 
 	for {
@@ -90,4 +100,9 @@ func main() {
 		//go handleConnection(conn)
 		pool.AddJob(conn)
 	}
+}
+
+func getThreadID() int {
+	tid, _, _ := syscall.RawSyscall(syscall.SYS_GETTID, 0, 0, 0)
+	return int(tid)
 }

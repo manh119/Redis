@@ -1,6 +1,6 @@
 package main
 
-import "redis-clone/internal/server"
+import "redis-clone/server"
 
 func main() {
 	server.RunIoMultiplexingServer()

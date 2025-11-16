@@ -3,8 +3,8 @@
 package io_multiplexing
 
 import (
-	"redis-clone/internal/core/config"
 	"log"
+	"redis-clone/internal/core/config"
 	"syscall"
 )
 
@@ -14,6 +14,7 @@ type Epoll struct {
 	genericEvents []Event
 }
 
+// use system call to create epoll instance
 func CreateIOMultiplexer() (*Epoll, error) {
 	epollFD, err := syscall.EpollCreate1(0)
 	if err != nil {

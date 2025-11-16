@@ -1,11 +1,10 @@
-package core_test
+package resp_test
 
 import (
-	"fmt"
-	"redis-clone/internal/core"
+	"fmt"	
 	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/manh/redis-clone/internal/core"
 )
 
 func TestSimpleStringDecode(t *testing.T) {

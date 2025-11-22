@@ -1,11 +1,10 @@
 package server
 
 import (
-	"redis-clone/internal/core/config"
-	"redis-clone/internal/core/io_multiplexing"
 	"io"
 	"log"
 	"net"
+	"redis-clone/internal/core/io_multiplexing"
 	"syscall"
 )
 
@@ -29,83 +28,93 @@ func respond(data string, fd int) error {
 }
 
 func RunIoMultiplexingServer() {
-	log.Println("starting an I/O Multiplexing TCP server on", config.Port)
-	listener, err := net.Listen(config.Protocol, config.Port)
+	// 1. create io multiplexer and list on port 4000
+	log.Println("Starting IO Multiplexing Server on port 4000")
+	listener, err := net.Listen("tcp", ":4000")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer listener.Close()
 
-	// Get the file descriptor from the listener
-	tcpListener, ok := listener.(*net.TCPListener)
-	if !ok {
-		log.Fatal("listener is not a TCPListener")
-	}
-	listenerFile, err := tcpListener.File()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer listenerFile.Close()
-
-	serverFd := int(listenerFile.Fd())
-
-	// Create an ioMultiplexer instance (epoll in Linux, kqueue in MacOS)
+	// 2. Create epoll instance
 	ioMultiplexer, err := io_multiplexing.CreateIOMultiplexer()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer ioMultiplexer.Close()
 
-	// Monitor "read" events on the Server FD
-	if err = ioMultiplexer.Monitor(io_multiplexing.Event{
-		Fd: serverFd,
+	// 3. Monitor port 4000 for new connections
+	listenerFile, err := listener.(*net.TCPListener).File()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer listenerFile.Close()
+
+	listenerEvent := io_multiplexing.Event{
+		Fd: int(listenerFile.Fd()),
 		Op: io_multiplexing.OpRead,
-	}); err != nil {
+	}
+	if err := ioMultiplexer.Monitor(listenerEvent); err != nil {
 		log.Fatal(err)
 	}
 
-	var events = make([]io_multiplexing.Event, config.MaxConnection)
-	for {
-		// wait for file descriptors in the monitoring list to be ready for I/O
-		// it is a blocking call.
-		events, err = ioMultiplexer.Wait()
-		if err != nil {
-			continue
-		}
+	// 4. Map to store active connections
+	connections := make(map[int]net.Conn)
 
-		for i := 0; i < len(events); i++ {
-			if events[i].Fd == serverFd {
-				log.Printf("new client is trying to connect")
-				// set up new connection
-				connFd, _, err := syscall.Accept(serverFd)
+	// 5. Event loop
+	for {
+		// wait for events -- TODO : blocking hay non-blocking ??
+		events, err := ioMultiplexer.Wait()
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, event := range events {
+			// New connection
+			if event.Fd == int(listenerFile.Fd()) {
+
+				// Accept new connection - ?? TODO ? accept o day nghia la gi
+				conn, err := listener.Accept()
 				if err != nil {
-					log.Println("err", err)
-					continue
-				}
-				log.Printf("set up a new connection")
-				// ask epoll to monitor this connection
-				if err = ioMultiplexer.Monitor(io_multiplexing.Event{
-					Fd: connFd,
-					Op: io_multiplexing.OpRead,
-				}); err != nil {
 					log.Fatal(err)
 				}
-			} else {
-				cmd, err := readCommand(events[i].Fd)
-				// log.Println("command: ", cmd)
+				log.Printf("Accepted new connection from %s", conn.RemoteAddr())
+
+				connFile, err := conn.(*net.TCPConn).File()
 				if err != nil {
-					if err == io.EOF || err == syscall.ECONNRESET {
-						log.Println("client disconnected")
-						_ = syscall.Close(events[i].Fd)
+					log.Fatal(err)
+				}
+
+				connEvent := io_multiplexing.Event{
+					Fd: int(connFile.Fd()),
+					Op: io_multiplexing.OpRead,
+				}
+				if err := ioMultiplexer.Monitor(connEvent); err != nil {
+					log.Fatal(err)
+				}
+				connections[int(connFile.Fd())] = conn
+			} else {
+				// Existing connection has data to read
+				conn := connections[event.Fd]
+				command, err := readCommand(event.Fd)
+				if err != nil {
+					if err == io.EOF {
+						log.Printf("Connection closed by client %s", conn.RemoteAddr())
+						conn.Close()
+						delete(connections, event.Fd)
 						continue
 					}
-					log.Println("read error:", err)
-					continue
+					log.Fatal(err)
 				}
-				if err = respond(cmd, events[i].Fd); err != nil {
-					log.Println("err write:", err)
+				log.Printf("Received command from %s: %s", conn.RemoteAddr(), command)
+
+				// Simple RESP parsing (only handles PING)
+				var response = "hello world"
+
+				if err := respond(response, event.Fd); err != nil {
+					log.Fatal(err)
 				}
 			}
 		}
 	}
+
 }

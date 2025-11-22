@@ -4,7 +4,9 @@ import (
 	"io"
 	"log"
 	"net"
+	"redis-clone/internal/core"
 	"redis-clone/internal/core/io_multiplexing"
+	"strings"
 	"syscall"
 )
 
@@ -107,11 +109,19 @@ func RunIoMultiplexingServer() {
 				}
 				log.Printf("Received command from %s: %s", conn.RemoteAddr(), command)
 
-				// Simple RESP parsing (only handles PING)
-				var response = "hello world"
+				// Parse command string into Command struct
+				parts := strings.Fields(strings.TrimSpace(command))
+				if len(parts) == 0 {
+					continue
+				}
+				cmd := &core.Command{
+					Cmd:  strings.ToUpper(parts[0]),
+					Args: parts[1:],
+				}
 
-				if err := respond(response, event.Fd); err != nil {
-					log.Fatal(err)
+				// Execute command and respond
+				if err := core.ExecuteAndResponse(cmd, event.Fd); err != nil {
+					log.Printf("Error executing command: %v", err)
 				}
 			}
 		}

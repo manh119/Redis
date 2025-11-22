@@ -1,4 +1,4 @@
-package resp
+package core
 
 import (
 	"bytes"

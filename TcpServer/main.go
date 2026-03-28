@@ -6,21 +6,6 @@ import (
 	"syscall"
 )
 
-// func handleConnection(conn net.Conn) {
-// 	// 1. read data from client
-// 	var buf []byte = make([]byte, 1000)
-// 	_, err := conn.Read(buf)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	// 2. process
-// 	// time.Sleep(time.Second * 10)
-// 	//log.Printf("Processed request from %s in thread %d", conn.RemoteAddr(), getThreadID())
-
-//		// 3. reply
-//		conn.Write([]byte("+PONG\r\n"))
-//		// conn.Close()
-//	}
 func handleConnection(conn net.Conn) {
 	log.Printf("New connection from %s in thread %d", conn.RemoteAddr(), getThreadID())
 	defer conn.Close()

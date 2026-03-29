@@ -3,80 +3,68 @@ package main
 import (
 	"log"
 	"net"
-	"syscall"
+	"time"
 )
 
-// element in the queue
-type Job struct {
-	conn net.Conn
+/// implement thread pool
+/// just add any new connection to the shared-queue
+/// a pool of thread (workers) just wait for the new data in the queue to consumer
+
+type ThreadPool struct {
+	queue   chan net.Conn // shared-queue worker works on
+	workers []Worker
+	n       int
 }
 
-// represent the thread in the pool
 type Worker struct {
-	id      int
-	jobChan chan Job
+	id    int
+	queue chan net.Conn // shared-queue worker works on
 }
 
-// represent the thread pool
-type Pool struct {
-	jobQueue chan Job
-	workers  []*Worker
+func NewThreadPool(n int) *ThreadPool {
+
+	threadPool := &ThreadPool{
+		queue:   make(chan net.Conn, n),
+		workers: make([]Worker, n),
+		n:       n,
+	}
+
+	for i := 0; i < n; i++ {
+		threadPool.workers[i].id = i
+		threadPool.workers[i].queue = threadPool.queue
+	}
+
+	log.Printf("Created threadpool with %d workers", n)
+	return threadPool
 }
 
-// create a new worker
-func NewWorker(id int, jobChan chan Job) *Worker {
-	return &Worker{
-		id:      id,
-		jobChan: jobChan,
+func (pool ThreadPool) Start() {
+	for i := 0; i < pool.n; i++ {
+		go pool.workers[i].run()
 	}
 }
 
-func (w *Worker) Start() {
-	go func() {
-		for job := range w.jobChan {
-			log.Printf("Worker %d is handling job from %s", w.id, job.conn.RemoteAddr())
-			handleConnection(job.conn)
-			log.Printf("Worker %d finished job from %s", w.id, job.conn.RemoteAddr())
-		}
-	}()
-}
-
-func NewPool(numOfWorker int) *Pool {
-	return &Pool{
-		jobQueue: make(chan Job),
-		workers:  make([]*Worker, numOfWorker),
+func (worker Worker) run() {
+	for conn := range worker.queue {
+		log.Printf("connection at address %s are handled by worker %d", conn.RemoteAddr(), worker.id)
+		handleConnection(conn)
 	}
 }
 
-// push job to queue
-func (p *Pool) AddJob(conn net.Conn) {
-	p.jobQueue <- Job{conn: conn}
-}
-
-func (p *Pool) Start() {
-	log.Printf("Starting thread pool with %d workers", len(p.workers))
-	for i := 0; i < len(p.workers); i++ {
-		log.Printf("Starting worker %d", i)
-		worker := NewWorker(i, p.jobQueue)
-		p.workers[i] = worker
-		worker.Start()
-	}
+func (pool ThreadPool) addConn(conn net.Conn) {
+	pool.queue <- conn
 }
 
 func handleConnection(conn net.Conn) {
-	log.Printf("New connection from %s in thread %d", conn.RemoteAddr(), getThreadID())
 	defer conn.Close()
-
 	buf := make([]byte, 4096)
 
 	for {
-		n, err := conn.Read(buf)
+		_, err := conn.Read(buf)
 		if err != nil {
 			return // client đóng connection
 		}
-
-		// ignore actual RESP parsing — just respond PONG
-		_ = n
+		time.Sleep(100 * time.Millisecond)
 		conn.Write([]byte("+PONG\r\n"))
 	}
 }
@@ -88,9 +76,8 @@ func main() {
 	}
 	defer listener.Close()
 
-	// 1 pool with 2 threads
-	pool := NewPool(200)
-	pool.Start()
+	threadPool := NewThreadPool(5)
+	threadPool.Start()
 
 	for {
 		conn, err := listener.Accept()
@@ -98,11 +85,6 @@ func main() {
 			log.Fatal(err)
 		}
 		//go handleConnection(conn)
-		pool.AddJob(conn)
+		threadPool.addConn(conn)
 	}
-}
-
-func getThreadID() int {
-	tid, _, _ := syscall.RawSyscall(syscall.SYS_GETTID, 0, 0, 0)
-	return int(tid)
 }

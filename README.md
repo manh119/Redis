@@ -11,6 +11,9 @@ A simple client-server application written in Go using a **thread-per-connection
 
 ![img.png](img.png)
 
+### Multiplexing model
+
+![img_2.png](img_2.png)
 ## Project Structure
 
 ```

@@ -1,130 +1,65 @@
 package server
 
 import (
-	"io"
 	"log"
 	"net"
-	"redis-clone/internal/core"
-	"redis-clone/internal/core/io_multiplexing"
-	"strings"
 	"syscall"
 )
 
-func readCommand(fd int) (string, error) {
-	var buf = make([]byte, 512)
-	n, err := syscall.Read(fd, buf)
-	if err != nil {
-		return "", err
-	}
-	if n == 0 {
-		return "", io.EOF
-	}
-	return string(buf[:n]), nil
-}
-
-func respond(data string, fd int) error {
-	if _, err := syscall.Write(fd, []byte(data)); err != nil {
-		return err
-	}
-	return nil
-}
-
 func RunIoMultiplexingServer() {
-	// 1. create io multiplexer and list on port 4000
-	log.Println("Starting IO Multiplexing Server on port 4000")
-	listener, err := net.Listen("tcp", ":4000")
-	if err != nil {
-		log.Fatal(err)
-	}
+	listener, _ := net.Listen("tcp", ":4000")
 	defer listener.Close()
 
-	// 2. Create epoll instance
-	ioMultiplexer, err := io_multiplexing.CreateIOMultiplexer()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer ioMultiplexer.Close()
+	file, _ := listener.(*net.TCPListener).File()
+	fdListener := int(file.Fd())
+	syscall.SetNonblock(fdListener, true)
 
-	// 3. Monitor port 4000 for new connections
-	listenerFile, err := listener.(*net.TCPListener).File()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer listenerFile.Close()
+	// 1. create epoll instance
+	fdEpoll, _ := syscall.EpollCreate1(0)
+	defer syscall.Close(fdEpoll)
 
-	listenerEvent := io_multiplexing.Event{
-		Fd: int(listenerFile.Fd()),
-		Op: io_multiplexing.OpRead,
-	}
-	if err := ioMultiplexer.Monitor(listenerEvent); err != nil {
-		log.Fatal(err)
-	}
+	// 2. add tcp connection to the epoll to handle new connection
+	listenerEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdListener)}
+	_ = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdListener, listenerEvent)
 
-	// 4. Map to store active connections
-	connections := make(map[int]net.Conn)
-
-	// 5. Event loop
+	// 3. wait for new event in the epoll, event loop
+	bufferEvents := make([]syscall.EpollEvent, 100)
 	for {
-		// wait for events -- TODO : blocking hay non-blocking ??
-		events, err := ioMultiplexer.Wait()
+		n, err := syscall.EpollWait(fdEpoll, bufferEvents, 100)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf(err.Error())
+			continue
 		}
-		for _, event := range events {
-			// New connection
-			if event.Fd == int(listenerFile.Fd()) {
 
-				// Accept new connection - ?? TODO ? accept o day nghia la gi
-				conn, err := listener.Accept()
+		for i := 0; i < n; i++ {
+			currentFd := bufferEvents[i].Fd
+			if currentFd == int32(fdListener) {
+				fdConn, connAdrr, err := syscall.Accept(fdListener)
+				log.Printf("new connection from fd : %d with new addrr %s", currentFd, connAdrr)
 				if err != nil {
-					log.Fatal(err)
-				}
-				log.Printf("Accepted new connection from %s", conn.RemoteAddr())
-
-				connFile, err := conn.(*net.TCPConn).File()
-				if err != nil {
-					log.Fatal(err)
+					return
 				}
 
-				connEvent := io_multiplexing.Event{
-					Fd: int(connFile.Fd()),
-					Op: io_multiplexing.OpRead,
-				}
-				if err := ioMultiplexer.Monitor(connEvent); err != nil {
-					log.Fatal(err)
-				}
-				connections[int(connFile.Fd())] = conn
+				// 4. add new connection to the epoll to monitor
+				connEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdConn)}
+				err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdConn, connEvent)
 			} else {
-				// Existing connection has data to read
-				conn := connections[event.Fd]
-				command, err := readCommand(event.Fd)
-				if err != nil {
-					if err == io.EOF {
-						log.Printf("Connection closed by client %s", conn.RemoteAddr())
-						conn.Close()
-						delete(connections, event.Fd)
-						continue
-					}
-					log.Fatal(err)
-				}
-				log.Printf("Received command from %s: %s", conn.RemoteAddr(), command)
-
-				// Parse command string into Command struct
-				parts := strings.Fields(strings.TrimSpace(command))
-				if len(parts) == 0 {
-					continue
-				}
-				cmd := &core.Command{
-					Cmd:  strings.ToUpper(parts[0]),
-					Args: parts[1:],
-				}
-
-				// Execute command and respond
-				if err := core.ExecuteAndResponse(cmd, event.Fd); err != nil {
-					log.Printf("Error executing command: %v", err)
-				}
+				log.Printf("new change from fd : %d", currentFd)
+				readCommandAndReponse(fdEpoll, int(currentFd))
 			}
 		}
 	}
+}
 
+func readCommandAndReponse(fdEpoll int, fd int) {
+	buffer := make([]byte, 1024)
+	n, err := syscall.Read(fd, buffer)
+	if err != nil {
+		syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_DEL, fd, nil)
+		syscall.Close(fd)
+		return
+	}
+
+	log.Printf("read %d bytes from %d", n, fd)
+	syscall.Write(fd, []byte("PONG\n"))
 }

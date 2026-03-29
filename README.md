@@ -5,10 +5,11 @@ A simple client-server application written in Go using a **thread-per-connection
 ## Architecture
 
 ### Thread-Per-Connection Model
-- **Server**: Listens for incoming TCP connections on port `8080`
-- **Each Connection**: Handled by a dedicated goroutine (lightweight thread)
-- **Concurrency**: Multiple clients can connect simultaneously
-- **Thread Safety**: Shared data (key-value store) is protected with `sync.RWMutex`
+![img_1.png](img_1.png)
+
+### Thread-Pool Model
+
+![img.png](img.png)
 
 ## Project Structure
 

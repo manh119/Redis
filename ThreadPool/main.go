@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -11,53 +12,47 @@ import (
 /// a pool of thread (workers) just wait for the new data in the queue to consumer
 
 type ThreadPool struct {
-	queue   chan net.Conn // shared-queue worker works on
-	workers []Worker
-	n       int
-}
-
-type Worker struct {
-	id    int
 	queue chan net.Conn // shared-queue worker works on
+	wg    sync.WaitGroup
+	n     int
 }
 
 func NewThreadPool(n int) *ThreadPool {
-
-	threadPool := &ThreadPool{
-		queue:   make(chan net.Conn, n),
-		workers: make([]Worker, n),
-		n:       n,
-	}
-
-	for i := 0; i < n; i++ {
-		threadPool.workers[i].id = i
-		threadPool.workers[i].queue = threadPool.queue
-	}
-
 	log.Printf("Created threadpool with %d workers", n)
-	return threadPool
+	return &ThreadPool{
+		queue: make(chan net.Conn, 2*n), // size queue = 2 * number of worker
+		wg:    sync.WaitGroup{},
+		n:     n,
+	}
 }
 
-func (pool ThreadPool) Start() {
+func (pool *ThreadPool) Start() {
 	for i := 0; i < pool.n; i++ {
-		go pool.workers[i].run()
+		pool.wg.Add(1)
+		go func(workerId int) {
+			defer pool.wg.Done()
+			for conn := range pool.queue {
+				log.Printf("connection from %s are handle by worker %d", conn.RemoteAddr(), workerId)
+				handleConnection(conn)
+			}
+		}(i)
 	}
 }
 
-func (worker Worker) run() {
-	for conn := range worker.queue {
-		log.Printf("connection at address %s are handled by worker %d", conn.RemoteAddr(), worker.id)
-		handleConnection(conn)
-	}
+// grace full shutdown
+func (pool *ThreadPool) Stop() {
+	close(pool.queue)
+	pool.wg.Wait()
 }
 
-func (pool ThreadPool) addConn(conn net.Conn) {
+func (pool *ThreadPool) addConn(conn net.Conn) {
 	pool.queue <- conn
 }
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	buf := make([]byte, 4096)
+	conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
 	for {
 		_, err := conn.Read(buf)
@@ -82,9 +77,12 @@ func main() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error accepting connection: %s", err)
+			continue // continue handle new connection instead of crash main
 		}
-		//go handleConnection(conn)
 		threadPool.addConn(conn)
 	}
+
+	listener.Close()
+	threadPool.Stop()
 }

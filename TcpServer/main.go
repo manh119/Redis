@@ -3,46 +3,48 @@ package main
 import (
 	"log"
 	"net"
-	"syscall"
 )
 
-func handleConnection(conn net.Conn) {
-	log.Printf("New connection from %s in thread %d", conn.RemoteAddr(), getThreadID())
-	defer conn.Close()
-
-	buf := make([]byte, 4096)
-
-	for {
-		n, err := conn.Read(buf)
-		if err != nil {
-			return // client đóng connection
-		}
-
-		// ignore actual RESP parsing — just respond PONG
-		_ = n
-		conn.Write([]byte("+PONG\r\n"))
-	}
-}
-
+// test connect TCP : nc localhost 3000
 func main() {
 	listener, err := net.Listen("tcp", ":3000")
-	log.Println("Server is listening on port 3000")
-
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("server listen at port %v", listener.Addr())
+
+	defer listener.Close()
+
 	for {
-		// conn == socket == dedicated communication channel
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
-		// create a new goroutine to handle the connection
+
+		// each goroutine handle a connection, not block the main thread
 		go handleConnection(conn)
 	}
 }
 
-func getThreadID() int {
-	tid, _, _ := syscall.RawSyscall(syscall.SYS_GETTID, 0, 0, 0)
-	return int(tid)
+func handleConnection(conn net.Conn) {
+	log.Printf("handle connection from remote adrress %v", conn.RemoteAddr())
+	defer conn.Close()
+
+	buff := make([]byte, 1024)
+	for {
+		n, err := conn.Read(buff)
+
+		if err != nil {
+			log.Printf("read error: %v", err)
+			return
+		}
+
+		log.Printf("read %d bytes : %s", n, buff[:n])
+		_, err = conn.Write(buff[:n])
+		if err != nil {
+			return
+		}
+		log.Printf("write %s", buff[:n])
+	}
 }

@@ -7,25 +7,39 @@ import (
 )
 
 func RunIoMultiplexingServer() {
-	listener, _ := net.Listen("tcp", ":4000")
+	listener, err := net.Listen("tcp", ":4000")
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer listener.Close()
 
-	file, _ := listener.(*net.TCPListener).File()
+	file, err := listener.(*net.TCPListener).File()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
 	fdListener := int(file.Fd())
 	syscall.SetNonblock(fdListener, true)
 
 	// 1. create epoll instance
-	fdEpoll, _ := syscall.EpollCreate1(0)
+	fdEpoll, err := syscall.EpollCreate1(0)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer syscall.Close(fdEpoll)
 
 	// 2. add tcp connection to the epoll to handle new connection
 	listenerEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdListener)}
-	_ = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdListener, listenerEvent)
+	err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdListener, listenerEvent)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Server đang lắng nghe trên port :4000...")
 
 	// 3. wait for new event in the epoll, event loop
 	bufferEvents := make([]syscall.EpollEvent, 100)
 	for {
-		n, err := syscall.EpollWait(fdEpoll, bufferEvents, 100)
+		n, err := syscall.EpollWait(fdEpoll, bufferEvents, -1)
 		if err != nil {
 			log.Printf(err.Error())
 			continue
@@ -35,14 +49,20 @@ func RunIoMultiplexingServer() {
 			currentFd := bufferEvents[i].Fd
 			if currentFd == int32(fdListener) {
 				fdConn, connAdrr, err := syscall.Accept(fdListener)
-				log.Printf("new connection from fd : %d with new addrr %s", currentFd, connAdrr)
+				ip, port := parseSockaddr(connAdrr)
+				log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
 				if err != nil {
-					return
+					log.Printf("error connect to %s with error : %s", connAdrr, err.Error())
+					continue
 				}
+				syscall.SetNonblock(fdConn, true)
 
 				// 4. add new connection to the epoll to monitor
 				connEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdConn)}
 				err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdConn, connEvent)
+				if err != nil {
+					log.Printf(err.Error())
+				}
 			} else {
 				log.Printf("new change from fd : %d", currentFd)
 				readCommandAndReponse(fdEpoll, int(currentFd))
@@ -54,7 +74,9 @@ func RunIoMultiplexingServer() {
 func readCommandAndReponse(fdEpoll int, fd int) {
 	buffer := make([]byte, 1024)
 	n, err := syscall.Read(fd, buffer)
-	if err != nil {
+
+	// n == 0 nghĩa là đóng kết nối một cách bình thường ??
+	if n == 0 || err != nil {
 		syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_DEL, fd, nil)
 		syscall.Close(fd)
 		return
@@ -62,4 +84,19 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 
 	log.Printf("read %d bytes from %d", n, fd)
 	syscall.Write(fd, []byte("PONG\n"))
+}
+
+func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {
+	switch a := addr.(type) {
+	case *syscall.SockaddrInet4:
+		ip = net.IP(a.Addr[:]).String()
+		port = a.Port
+	case *syscall.SockaddrInet6:
+		ip = net.IP(a.Addr[:]).String()
+		port = a.Port
+	default:
+		ip = "unknown"
+		port = 0
+	}
+	return
 }

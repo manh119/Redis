@@ -208,6 +208,8 @@ func Encode(response any) (string, error) {
 			sb.WriteString(encodedEle)
 		}
 		return sb.String(), nil
+	case error:
+		return fmt.Sprintf("-%s\r\n", value), nil
 	default:
 		return "", errors.New("type is not supported")
 	}

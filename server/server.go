@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net"
+	"strconv"
 	"syscall"
 
 	"github.com/manh119/Redis/internal/core"
@@ -11,7 +12,7 @@ import (
 	"github.com/manh119/Redis/internal/core/resp"
 )
 
-var dict = data_structure.NewDictionary()
+var dictStore = data_structure.NewDictionary()
 
 func RunIoMultiplexingServer() {
 	listener, err := net.Listen("tcp", ":4000")
@@ -135,8 +136,21 @@ func handleCommand(decodeRequest any) (any, error) {
 		return handleGet(cmd)
 	case "set":
 		return handleSet(cmd)
+	case "ttl":
+		return handleTTL(cmd)
 	}
 	return "", nil
+}
+
+func handleTTL(cmd core.Command) (any, error) {
+	if len(cmd.Args) == 1 {
+		key, ok := cmd.Args[0].(string)
+		if !ok {
+			return "", errors.New("ERR value is not a valid string")
+		}
+		return dictStore.Ttl(key), nil
+	}
+	return "", errors.New("invalid command")
 }
 
 func handlePing(cmd core.Command) (string, error) {
@@ -151,12 +165,41 @@ func handlePing(cmd core.Command) (string, error) {
 	return "", errors.New("invalid command")
 }
 
-func handleGet(cmd core.Command) (string, error) {
-	return
+func handleGet(cmd core.Command) (any, error) {
+	if len(cmd.Args) == 1 {
+		key, ok := cmd.Args[0].(string)
+		if !ok {
+			return "", errors.New("ERR value is not a valid string")
+		}
+		return dictStore.Get(key), nil
+	}
+	return "", errors.New("invalid command")
 }
 
 func handleSet(cmd core.Command) (string, error) {
-	return
+	argCount := len(cmd.Args)
+	if argCount != 2 && argCount != 4 {
+		return "", errors.New("ERR wrong number of arguments for 'set' command")
+	}
+	key, ok1 := cmd.Args[0].(string)
+	if !ok1 {
+		return "", errors.New("ERR key must be a string")
+	}
+	value := cmd.Args[1]
+	var ttl int64 = -1
+	if argCount == 4 {
+		ttlStr, ok := cmd.Args[3].(string)
+		if !ok {
+			return "", errors.New("ERR value is not an integer or out of range")
+		}
+		parsedTTL, err := strconv.ParseInt(ttlStr, 10, 64)
+		if err != nil {
+			return "", errors.New("ERR value is not an integer or out of range")
+		}
+		ttl = parsedTTL
+	}
+	dictStore.Set(key, value, ttl*1000)
+	return "OK", nil
 }
 
 func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {

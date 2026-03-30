@@ -75,9 +75,17 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	buffer := make([]byte, 1024)
 	n, err := syscall.Read(fd, buffer)
 
-	// n == 0 nghĩa là đóng kết nối một cách bình thường ??
-	if n == 0 || err != nil {
-		syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_DEL, fd, nil)
+	// n == 0 nghĩa là client đóng connection
+	if n == 0 {
+		syscall.Close(fd)
+		return
+	}
+
+	if err != nil {
+		// chưa có data → bỏ qua
+		if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
+			return
+		}
 		syscall.Close(fd)
 		return
 	}

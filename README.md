@@ -14,6 +14,9 @@ A simple client-server application written in Go using a **thread-per-connection
 ### Multiplexing model
 
 ![img_2.png](img_2.png)
+
+### Basic function with redis-cli
+![img_3.png](img_3.png)
 ## Project Structure
 
 ```

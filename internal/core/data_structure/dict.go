@@ -31,7 +31,7 @@ func (dict *Dictionary) Get(key string) any {
 
 func (dict *Dictionary) Set(key string, value any, ttl int64) {
 	dict.dictStore[key] = value
-	if ttl == -1 {
+	if ttl < 0 {
 		dict.expiredDictStore[key] = -1
 	} else {
 		dict.expiredDictStore[key] = time.Now().UnixMilli() + ttl
@@ -42,5 +42,52 @@ func (dict *Dictionary) Ttl(key string) int64 {
 	if dict.dictStore[key] == nil {
 		return -2
 	}
+	if dict.expiredDictStore[key] == -1 {
+		return -1
+	}
 	return (dict.expiredDictStore[key] - time.Now().UnixMilli()) / 1000
+}
+
+func (dict *Dictionary) Expire(key string, ttl int64) int {
+	if dict.dictStore[key] == nil {
+		return 0
+	}
+	if ttl == -1 {
+		dict.expiredDictStore[key] = -1
+	} else {
+		dict.expiredDictStore[key] = time.Now().UnixMilli() + ttl
+	}
+	return 1
+}
+
+func (dict *Dictionary) Exists(args []any) int {
+	count := 0
+	for _, arg := range args {
+		key, ok := arg.(string)
+		if !ok {
+			continue
+		}
+		if dict.dictStore[key] != nil &&
+			((dict.expiredDictStore[key] > time.Now().UnixMilli()) || dict.expiredDictStore[key] == -1) {
+			count++
+		}
+	}
+	return count
+}
+
+func (dict *Dictionary) Del(args []any) int {
+	count := 0
+	for _, arg := range args {
+		key, ok := arg.(string)
+		if !ok {
+			continue
+		}
+		if dict.dictStore[key] != nil &&
+			((dict.expiredDictStore[key] > time.Now().UnixMilli()) || dict.expiredDictStore[key] == -1) {
+			delete(dict.dictStore, key)
+			delete(dict.expiredDictStore, key)
+			count++
+		}
+	}
+	return count
 }

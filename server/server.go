@@ -108,7 +108,7 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	// 2. read command
 	response, err := handleCommand(decodeRequest)
 	if err != nil {
-		response = err.Error()
+		response = err
 	}
 
 	// 3. encode response
@@ -138,6 +138,12 @@ func handleCommand(decodeRequest any) (any, error) {
 		return handleSet(cmd)
 	case "ttl":
 		return handleTTL(cmd)
+	case "expire":
+		return handleExpire(cmd)
+	case "del":
+		return handleDel(cmd)
+	case "exists":
+		return handleExists(cmd)
 	}
 	return "", nil
 }
@@ -174,6 +180,42 @@ func handleGet(cmd core.Command) (any, error) {
 		return dictStore.Get(key), nil
 	}
 	return "", errors.New("invalid command")
+}
+
+// expire key 100s
+func handleExpire(cmd core.Command) (any, error) {
+	if len(cmd.Args) == 2 {
+		key, ok := cmd.Args[0].(string)
+		if !ok {
+			return "", errors.New("ERR value is not a valid string")
+		}
+		ttlStr, ok := cmd.Args[1].(string)
+		if !ok {
+			return "", errors.New("ERR value is not an integer or out of range")
+		}
+		parsedTTL, err := strconv.ParseInt(ttlStr, 10, 64)
+		if err != nil {
+			return "", errors.New("ERR value is not an integer or out of range")
+		}
+		return dictStore.Expire(key, parsedTTL*1000), nil
+	}
+	return "", errors.New("invalid number of args")
+}
+
+// exists key1 key2 -> 2
+func handleExists(cmd core.Command) (any, error) {
+	if len(cmd.Args) == 0 {
+		return "", errors.New("invalid number of args")
+	}
+	return dictStore.Exists(cmd.Args), nil
+}
+
+// del key1 key2
+func handleDel(cmd core.Command) (any, error) {
+	if len(cmd.Args) == 0 {
+		return "", errors.New("invalid number of args")
+	}
+	return dictStore.Del(cmd.Args), nil
 }
 
 func handleSet(cmd core.Command) (string, error) {

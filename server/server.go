@@ -91,7 +91,7 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	}
 
 	log.Printf("read %d bytes from %d", n, fd)
-	syscall.Write(fd, []byte("PONG\n"))
+	syscall.Write(fd, pin)
 }
 
 func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {

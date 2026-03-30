@@ -3,30 +3,31 @@ package core
 import (
 	"errors"
 	"fmt"
-	"redis-clone/internal/core/constant"
-	. "redis-clone/internal/core/resp"
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/manh119/Redis/internal/core/constant"
+	"github.com/manh119/Redis/internal/core/resp"
 )
 
 func cmdPING(args []string) []byte {
 	var res []byte
 	if len(args) > 1 {
-		return Encode(errors.New("ERR wrong number of arguments for 'ping' command"), false)
+		return resp.Encode(errors.New("ERR wrong number of arguments for 'ping' command"), false)
 	}
 
 	if len(args) == 0 {
-		res = Encode("PONG", true)
+		res = resp.Encode("PONG", true)
 	} else {
-		res = Encode(args[0], false)
+		res = resp.Encode(args[0], false)
 	}
 	return res
 }
 
 func cmdSET(args []string) []byte {
 	if len(args) < 2 || len(args) == 3 || len(args) > 4 {
-		return Encode(errors.New("(error) ERR wrong number of arguments for 'SET' command"), false)
+		return resp.Encode(errors.New("(error) ERR wrong number of arguments for 'SET' command"), false)
 	}
 
 	var key, value string
@@ -36,7 +37,7 @@ func cmdSET(args []string) []byte {
 	if len(args) > 2 {
 		ttlSec, err := strconv.ParseInt(args[3], 10, 64)
 		if err != nil {
-			return Encode(errors.New("(error) ERR value is not an integer or out of range"), false)
+			return resp.Encode(errors.New("(error) ERR value is not an integer or out of range"), false)
 		}
 		ttlMs = ttlSec * 1000
 	}
@@ -47,7 +48,7 @@ func cmdSET(args []string) []byte {
 
 func cmdGET(args []string) []byte {
 	if len(args) != 1 {
-		return Encode(errors.New("(error) ERR wrong number of arguments for 'GET' command"), false)
+		return resp.Encode(errors.New("(error) ERR wrong number of arguments for 'GET' command"), false)
 	}
 
 	key := args[0]
@@ -60,12 +61,12 @@ func cmdGET(args []string) []byte {
 		return constant.RespNil
 	}
 
-	return Encode(obj.Value, false)
+	return resp.Encode(obj.Value, false)
 }
 
 func cmdTTL(args []string) []byte {
 	if len(args) != 1 {
-		return Encode(errors.New("(error) ERR wrong number of arguments for 'TTL' command"), false)
+		return resp.Encode(errors.New("(error) ERR wrong number of arguments for 'TTL' command"), false)
 	}
 	key := args[0]
 	obj := dictStore.Get(key)
@@ -83,7 +84,7 @@ func cmdTTL(args []string) []byte {
 		return constant.TtlKeyNotExist
 	}
 
-	return Encode(int64(remainMs/1000), false)
+	return resp.Encode(int64(remainMs/1000), false)
 }
 
 // ExecuteAndResponse given a Command, executes it and responses

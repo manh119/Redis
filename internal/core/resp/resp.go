@@ -1,9 +1,10 @@
-package core
+package resp
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 const CRLF string = "\r\n"
@@ -54,7 +55,7 @@ func DecodeOne(data []byte) (interface{}, int, error) {
 	case '-':
 		return readError(data)
 	case '$':
-		return readBulkString(data)
+		return ReadBulkString(data)
 	case '*':
 		return readArray(data)
 	}
@@ -66,7 +67,7 @@ func Decode(data []byte) (interface{}, error) {
 	return res, err
 }
 
-// +OK\r\n => OK, 5
+// +OK\r\n => OK, 5 (next index)
 func readSimpleString(data []byte) (string, int, error) {
 	// Kiểm tra dữ liệu rỗng
 	if len(data) == 0 || data[0] != '+' {
@@ -83,6 +84,53 @@ func readSimpleString(data []byte) (string, int, error) {
 	s := string(data[1:index])
 	pos := index + len(CRLF)
 	return s, pos, nil
+}
+
+// $5\r\nhello\r\n => "hello"
+// $-1\r\n => ""
+// $0\r\n\r\n => ""
+func ReadBulkString(data []byte) (string, int, error) {
+	// 1. Kiểm tra định dạng cơ bản
+	if len(data) < 4 || data[0] != '$' {
+		return "", 0, errors.New("không phải định dạng Bulk String (thiếu '$')")
+	}
+
+	// 2. Tìm vị trí kết thúc của dòng tiêu đề (ví dụ: tìm vị trí sau số 5 trong "$5\r\n")
+	headerEnd := bytes.Index(data, []byte(CRLF))
+	if headerEnd == -1 {
+		return "", 0, errors.New("thiếu ký tự xuống dòng sau phần độ dài")
+	}
+
+	// 3. Lấy giá trị độ dài (nằm giữa '$' và '\r\n')
+	lenRaw := string(data[1:headerEnd])
+	length, err := strconv.Atoi(lenRaw)
+	if err != nil {
+		return "", 0, errors.New("độ dài không hợp lệ")
+	}
+
+	// Trường hợp đặc biệt: Null Bulk String ($-1\r\n)
+	if length == -1 {
+		return "", headerEnd + len(CRLF), nil
+	}
+
+	// 4. Xác định vị trí dữ liệu thực tế
+	bodyStart := headerEnd + len(CRLF)
+	bodyEnd := bodyStart + length
+	totalExpectedLen := bodyEnd + len(CRLF)
+
+	// 5. Kiểm tra xem toàn bộ gói tin có đủ độ dài không
+	if len(data) < totalExpectedLen {
+		return "", 0, errors.New("dữ liệu thực tế ngắn hơn độ dài khai báo")
+	}
+
+	// 6. Kiểm tra xem có kết thúc bằng \r\n không
+	if !bytes.Equal(data[bodyEnd:totalExpectedLen], []byte(CRLF)) {
+		return "", 0, errors.New("thiếu ký tự kết thúc \r\n ở cuối chuỗi")
+	}
+
+	// 7. Trả về kết quả
+	result := string(data[bodyStart:bodyEnd])
+	return result, totalExpectedLen, nil
 }
 
 // :123\r\n => 123
@@ -127,47 +175,25 @@ func readError(data []byte) (string, int, error) {
 	return s, pos, nil
 }
 
-// $5\r\nhello\r\n => 5, 4
-func readLen(data []byte) (int, int) {
-	if len(data) == 0 {
-		return 0, 0
-	}
-	index := bytes.Index(data, []byte(CRLF))
-	if index < 0 {
-		return 0, 0
-	}
-	var length int
-	_, err := fmt.Sscanf(string(data[1:index]), "%d", &length)
-	if err != nil {
-		return 0, 0
-	}
-	pos := index + len(CRLF)
-	return length, pos
-}
-
-// $5\r\nhello\r\n => "hello"
-func readBulkString(data []byte) (string, int, error) {
-	if len(data) == 0 || data[0] != '$' {
-		return "", 0, errors.New("not a bulk string")
-	}
-	length, pos := readLen(data)
-	if length == -1 {
-		return "", pos, nil // Null bulk string
-	}
-	if pos+length+len(CRLF) > len(data) {
-		return "", pos, errors.New("unexpected end of data")
-	}
-	s := string(data[pos : pos+length])
-	pos += length + len(CRLF)
-	return s, pos, nil
-}
-
 // *2\r\n$5\r\nhello\r\n$5\r\nworld\r\n => {"hello", "world"}
 func readArray(data []byte) (interface{}, int, error) {
-	length, pos := readLen(data)
-	if length == -1 {
-		return nil, pos, nil
+	if data == nil || len(data) == 0 || data[0] != '*' {
+		return nil, 0, errors.New("not an array")
 	}
+	endHeader := bytes.Index(data, []byte(CRLF))
+	if endHeader == -1 {
+		return nil, 0, errors.New("CRLF not found")
+	}
+	length, err := strconv.Atoi(string(data[1:endHeader]))
+	if err != nil {
+		return nil, 0, errors.New("fail to convert length of array")
+	}
+	if length == -1 {
+		return nil, 0, nil
+	}
+
+	// start body
+	pos := endHeader + len(CRLF)
 	res := make([]interface{}, length)
 	for i := 0; i < length; i++ {
 		if pos >= len(data) {

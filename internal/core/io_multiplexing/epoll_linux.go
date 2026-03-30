@@ -4,8 +4,9 @@ package io_multiplexing
 
 import (
 	"log"
-	"redis-clone/internal/core/config"
 	"syscall"
+
+	"github.com/manh119/Redis/internal/core/config"
 )
 
 type Epoll struct {

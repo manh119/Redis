@@ -1,6 +1,6 @@
 package main
 
-import "redis-clone/server"
+import "github.com/manh119/Redis/server"
 
 func main() {
 	server.RunIoMultiplexingServer()

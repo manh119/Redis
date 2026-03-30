@@ -1,10 +1,17 @@
 package server
 
 import (
+	"errors"
 	"log"
 	"net"
 	"syscall"
+
+	"github.com/manh119/Redis/internal/core"
+	"github.com/manh119/Redis/internal/core/data_structure"
+	"github.com/manh119/Redis/internal/core/resp"
 )
+
+var dict = data_structure.NewDictionary()
 
 func RunIoMultiplexingServer() {
 	listener, err := net.Listen("tcp", ":4000")
@@ -89,9 +96,67 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 		syscall.Close(fd)
 		return
 	}
+	// 1. decode request
+	decodeRequest, _, err := resp.ReadArray(buffer[:n])
+	if err != nil {
+		log.Printf("Error decode")
+		return
+	}
+	log.Printf("decodeMess: %s", decodeRequest)
 
-	log.Printf("read %d bytes from %d", n, fd)
-	syscall.Write(fd, pin)
+	// 2. read command
+	response, err := handleCommand(decodeRequest)
+	if err != nil {
+		response = err.Error()
+	}
+
+	// 3. encode response
+	encodedRes, err := resp.Encode(response)
+
+	// 4. response
+	syscall.Write(fd, []byte(encodedRes))
+}
+
+func handleCommand(decodeRequest any) (any, error) {
+	arr, ok := decodeRequest.([]any)
+	if !ok {
+		return "", errors.New("invalid command")
+	}
+	if decodeRequest == nil || len(arr) == 0 {
+		return "", errors.New("invalid command")
+	}
+
+	cmd := core.Command{Cmd: arr[0].(string), Args: arr[1:]}
+
+	switch cmd.Cmd {
+	case "ping":
+		return handlePing(cmd)
+	case "get":
+		return handleGet(cmd)
+	case "set":
+		return handleSet(cmd)
+	}
+	return "", nil
+}
+
+func handlePing(cmd core.Command) (string, error) {
+	if cmd.Args == nil || len(cmd.Args) == 0 {
+		return "pong", nil
+	}
+
+	if len(cmd.Args) == 1 {
+		return cmd.Args[0].(string), nil
+	}
+
+	return "", errors.New("invalid command")
+}
+
+func handleGet(cmd core.Command) (string, error) {
+	return
+}
+
+func handleSet(cmd core.Command) (string, error) {
+	return
 }
 
 func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {

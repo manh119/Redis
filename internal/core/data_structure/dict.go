@@ -1,75 +1,32 @@
 package data_structure
 
-import "time"
+import (
+	"time"
+)
 
-type Obj struct {
-	Value interface{}
+type Dictionary struct {
+	dictStore        map[string]any    // key -> value
+	expiredDictStore map[string]uint64 // key -> TTL
 }
 
-type Dict struct {
-	dictStore        map[string]*Obj
-	expiredDictStore map[string]uint64
+func NewDictionary() *Dictionary {
+	return &Dictionary{}
 }
 
-func CreateDict() *Dict {
-	res := Dict{
-		dictStore:        make(map[string]*Obj),
-		expiredDictStore: make(map[string]uint64),
+func (dict *Dictionary) get(key string) any {
+	if dict.dictStore[key] == nil {
+		return nil
 	}
-	return &res
-}
-
-func (d *Dict) GetExpireDictStore() map[string]uint64 {
-	return d.expiredDictStore
-}
-
-func (d *Dict) NewObj(key string, value interface{}, ttlMs int64) *Obj {
-	obj := &Obj{
-		Value: value,
+	if dict.expiredDictStore[key] > uint64(time.Now().UnixMilli()) {
+		return dict.dictStore[key]
+	} else {
+		delete(dict.dictStore, key)
+		delete(dict.expiredDictStore, key)
+		return nil
 	}
-	if ttlMs > 0 {
-		d.SetExpiry(key, ttlMs)
-	}
-	return obj
 }
 
-func (d *Dict) GetExpiry(key string) (uint64, bool) {
-	exp, exist := d.expiredDictStore[key]
-	return exp, exist
-}
-
-func (d *Dict) SetExpiry(key string, ttlMs int64) {
-	d.expiredDictStore[key] = uint64(time.Now().UnixMilli()) + uint64(ttlMs)
-}
-
-func (d *Dict) HasExpired(key string) bool {
-	exp, exist := d.expiredDictStore[key]
-	if !exist {
-		return false
-	}
-	return exp <= uint64(time.Now().UnixMilli())
-}
-
-func (d *Dict) Get(k string) *Obj {
-	v := d.dictStore[k]
-	if v != nil {
-		if d.HasExpired(k) {
-			d.Del(k)
-			return nil
-		}
-	}
-	return v
-}
-
-func (d *Dict) Set(k string, obj *Obj) {
-	d.dictStore[k] = obj
-}
-
-func (d *Dict) Del(k string) bool {
-	if _, exist := d.dictStore[k]; exist {
-		delete(d.dictStore, k)
-		delete(d.expiredDictStore, k)
-		return true
-	}
-	return false
+func (dict *Dictionary) set(key string, value any, ttl int64) {
+	dict.dictStore[key] = value
+	dict.expiredDictStore[key] = uint64(time.Now().UnixMilli() + ttl)
 }

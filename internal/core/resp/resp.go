@@ -5,45 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 const CRLF string = "\r\n"
 
-var RespNil = []byte("$-1\r\n")
-
-func Encode(value interface{}, isSimpleString bool) []byte {
-	switch v := value.(type) {
-	case string:
-		if isSimpleString {
-			return []byte(fmt.Sprintf("+%s%s", v, CRLF))
-		}
-		return []byte(fmt.Sprintf("$%d%s%s%s", len(v), CRLF, v, CRLF))
-	case int64, int32, int16, int8, int:
-		return []byte(fmt.Sprintf(":%d\r\n", v))
-	case error:
-		return []byte(fmt.Sprintf("-%s\r\n", v))
-	case []string:
-		return encodeStringArray(value.([]string))
-	case [][]string:
-		var b []byte
-		buf := bytes.NewBuffer(b)
-		for _, sa := range value.([][]string) {
-			buf.Write(encodeStringArray(sa))
-		}
-		return []byte(fmt.Sprintf("*%d\r\n%s", len(value.([][]string)), buf.Bytes()))
-	case []interface{}:
-		var b []byte
-		buf := bytes.NewBuffer(b)
-		for _, x := range value.([]interface{}) {
-			buf.Write(Encode(x, false))
-		}
-		return []byte(fmt.Sprintf("*%d\r\n%s", len(value.([]interface{})), buf.Bytes()))
-	default:
-		return RespNil
-	}
-}
-
-func DecodeOne(data []byte) (interface{}, int, error) {
+func DecodeOne(data []byte) (any, int, error) {
 	if len(data) == 0 {
 		return nil, 0, errors.New("no data")
 	}
@@ -57,12 +24,12 @@ func DecodeOne(data []byte) (interface{}, int, error) {
 	case '$':
 		return ReadBulkString(data)
 	case '*':
-		return readArray(data)
+		return ReadArray(data)
 	}
 	return nil, 0, nil
 }
 
-func Decode(data []byte) (interface{}, error) {
+func Decode(data []byte) (any, error) {
 	res, _, err := DecodeOne(data)
 	return res, err
 }
@@ -176,7 +143,7 @@ func readError(data []byte) (string, int, error) {
 }
 
 // *2\r\n$5\r\nhello\r\n$5\r\nworld\r\n => {"hello", "world"}
-func readArray(data []byte) (interface{}, int, error) {
+func ReadArray(data []byte) (any, int, error) {
 	if data == nil || len(data) == 0 || data[0] != '*' {
 		return nil, 0, errors.New("not an array")
 	}
@@ -194,7 +161,7 @@ func readArray(data []byte) (interface{}, int, error) {
 
 	// start body
 	pos := endHeader + len(CRLF)
-	res := make([]interface{}, length)
+	res := make([]any, length)
 	for i := 0; i < length; i++ {
 		if pos >= len(data) {
 			return nil, pos, errors.New("unexpected end of data")
@@ -220,4 +187,28 @@ func encodeStringArray(sa []string) []byte {
 		buf.Write(encodeString(s))
 	}
 	return []byte(fmt.Sprintf("*%d\r\n%s", len(sa), buf.Bytes()))
+}
+
+func Encode(response any) (string, error) {
+	switch value := response.(type) {
+	case string: // simple string
+		return fmt.Sprintf("+%s\r\n", value), nil
+	case int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8: // digital
+		return fmt.Sprintf(":%d\r\n", value), nil
+	case []byte: // bulk string
+		return fmt.Sprintf("$%d\r\n%s\r\n", len(value), string(value)), nil
+	case []any:
+		var sb strings.Builder
+		sb.WriteString((fmt.Sprintf("*%d\r\n", len(value))))
+		for _, elem := range value {
+			encodedEle, err := Encode(elem)
+			if err != nil {
+				return "", err
+			}
+			sb.WriteString(encodedEle)
+		}
+		return sb.String(), nil
+	default:
+		return "", errors.New("type is not supported")
+	}
 }

@@ -1,6 +1,7 @@
 package resp
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -135,16 +136,16 @@ func TestBulkString(t *testing.T) {
 }
 
 func TestArrayDecode(t *testing.T) {
-	cases := map[string][]interface{}{
+	cases := map[string][]any{
 		"*0\r\n":                                                   {},
 		"*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n":                     {"hello", "world"},
 		"*3\r\n:1\r\n:2\r\n:3\r\n":                                 {int64(1), int64(2), int64(3)},
 		"*5\r\n:1\r\n:2\r\n:3\r\n:4\r\n$5\r\nhello\r\n":            {int64(1), int64(2), int64(3), int64(4), "hello"},
-		"*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Hello\r\n-World\r\n": {[]int64{int64(1), int64(2), int64(3)}, []interface{}{"Hello", "World"}},
+		"*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Hello\r\n-World\r\n": {[]int64{int64(1), int64(2), int64(3)}, []any{"Hello", "World"}},
 	}
 	for k, v := range cases {
 		value, _ := Decode([]byte(k))
-		array := value.([]interface{})
+		array := value.([]any)
 		if len(array) != len(v) {
 			t.Fail()
 		}
@@ -156,14 +157,65 @@ func TestArrayDecode(t *testing.T) {
 	}
 }
 
-//func TestEncodeString2DArray(t *testing.T) {
-//	var decode = [][]string{{"hello", "world"}, {"1", "2", "3"}, {"xyz"}}
-//	encode := Encode(decode, false)
-//	assert.EqualValues(t, "*3\r\n*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n*3\r\n$1\r\n1\r\n$1\r\n2\r\n$1\r\n3\r\n*1\r\n$3\r\nxyz\r\n", string(encode))
-//	decodeAgain, _ := Decode(encode)
-//	for i := 0; i < 3; i++ {
-//		for j := 0; j < len(decode[i]); j++ {
-//			assert.EqualValues(t, decode[i][j], decodeAgain.([]interface{})[i].([]interface{})[j])
-//		}
-//	}
-//}
+func TestEncode(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected string
+		wantErr  bool
+	}{
+		{
+			name:     "Simple String",
+			input:    "OK",
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "Error",
+			input:    errors.New("Error Message"),
+			expected: "-Error Message\r\n",
+		},
+		{
+			name:     "Integer",
+			input:    1024,
+			expected: ":1024\r\n",
+		},
+		{
+			name:     "Bulk String",
+			input:    []byte("hello"),
+			expected: "$5\r\nhello\r\n",
+		},
+		{
+			name:     "Empty Bulk String",
+			input:    []byte(""),
+			expected: "$0\r\n\r\n",
+		},
+		{
+			name:     "Array of Mixed Types",
+			input:    []any{"PING", 100},
+			expected: "*2\r\n+PING\r\n:100\r\n",
+		},
+		{
+			name:     "Nested Array",
+			input:    []any{[]any{"echo", "hi"}},
+			expected: "*1\r\n*2\r\n+echo\r\n+hi\r\n",
+		},
+		{
+			name:    "Unsupported Type",
+			input:   struct{}{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Encode(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Encode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.expected {
+				t.Errorf("Encode() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}

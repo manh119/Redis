@@ -252,11 +252,11 @@ func (h zHeap) Less(i, j int) bool {
 	return h.items[i].score < h.items[j].score || (h.items[i].score == h.items[j].score && h.items[i].member < h.items[j].member)
 }
 func (h zHeap) Swap(i, j int) { h.items[i], h.items[j] = h.items[j], h.items[i] }
-func (h *zHeap) Push(x interface{}) {
+func (h *zHeap) Push(x any) {
 	// 1. append item
 	h.items = append(h.items, x.(*ZItem))
 }
-func (h *zHeap) Pop() interface{} {
+func (h *zHeap) Pop() any {
 	// 1. pop last
 	n := len(h.items)
 	x := h.items[n-1]

@@ -105,3 +105,15 @@ func HandleSet(cmd Command) (string, error) {
 	dictStore.Set(key, value, ttl*1000)
 	return "OK", nil
 }
+
+func HandleSetAdd(cmd Command) (int, error) {
+	argCount := len(cmd.Args)
+	if argCount != 2 {
+		return 0, errors.New("ERR wrong number of arguments for 'sadd' command")
+	}
+	key, ok := cmd.Args[0].(string)
+	if !ok {
+		return 0, errors.New("ERR key must be a string")
+	}
+	dictStore.ZADD(key, cmd.Args[1:])
+}

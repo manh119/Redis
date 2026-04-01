@@ -91,3 +91,21 @@ func (dict *Dictionary) Del(args []any) int {
 	}
 	return count
 }
+
+func (dict *Dictionary) ZADD(key string, args []any) int {
+	count := 0
+	simpleSet := newSimpleSet()
+	if dict.dictStore[key] != nil {
+		simpleSet = dict.dictStore[key]
+	}
+	for _, arg := range args {
+		value, ok := arg.(string)
+		if !ok {
+			continue
+		}
+
+		newSimpleSet.values
+		dict.Set(key, newSimpleSet, -1)
+	}
+	return
+}

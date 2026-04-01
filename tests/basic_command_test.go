@@ -9,7 +9,7 @@ import (
 )
 
 // Khởi tạo client dùng chung cho các test
-func setupClient() *redis.Client {
+func SetupClient() *redis.Client {
 	return redis.NewClient(&redis.Options{
 		Addr: "localhost:4000",
 	})
@@ -20,7 +20,7 @@ func TestRedisCommands(t *testing.T) {
 	go server.RunIoMultiplexingServer()
 	time.Sleep(200 * time.Millisecond)
 
-	rdb := setupClient()
+	rdb := SetupClient()
 
 	// 1. Test lệnh SET
 	t.Run("TestSET", func(t *testing.T) {
@@ -69,6 +69,80 @@ func TestRedisCommands(t *testing.T) {
 		_, err := rdb.Get("non_existent_key").Result()
 		if err != redis.Nil {
 			t.Errorf("Mong đợi lỗi redis.Nil, nhưng nhận được: %v", err)
+		}
+	})
+}
+
+func TestRedisCommands22(t *testing.T) {
+	// Khởi động server
+	go server.RunIoMultiplexingServer()
+	time.Sleep(200 * time.Millisecond)
+
+	rdb := setupClient()
+
+	// 1. Test SET & GET cơ bản
+	t.Run("BasicSetGet", func(t *testing.T) {
+		err := rdb.Set("key1", "value1", 0).Err()
+		if err != nil {
+			t.Fatalf("Lỗi SET: %v", err)
+		}
+
+		val, err := rdb.Get("key1").Result()
+		if err != nil {
+			t.Fatalf("Lỗi GET: %v", err)
+		}
+		if val != "value1" {
+			t.Errorf("Mong đợi 'value1', nhận được: %s", val)
+		}
+	})
+
+	// 2. Test ghi đè (Overwrite) giá trị cũ
+	t.Run("OverwriteKey", func(t *testing.T) {
+		rdb.Set("key2", "old_value", 0)
+		err := rdb.Set("key2", "new_value", 0).Err()
+		if err != nil {
+			t.Fatalf("Lỗi khi ghi đè SET: %v", err)
+		}
+
+		val, _ := rdb.Get("key2").Result()
+		if val != "new_value" {
+			t.Errorf("Giá trị không được cập nhật, nhận được: %s", val)
+		}
+	})
+
+	// 3. Test với Key không tồn tại
+	t.Run("GetNonExistentKey", func(t *testing.T) {
+		_, err := rdb.Get("non_existent").Result()
+		if err != redis.Nil {
+			t.Errorf("Mong đợi lỗi redis.Nil cho key không tồn tại, nhưng nhận được: %v", err)
+		}
+	})
+
+	// 4. Test với giá trị rỗng hoặc Key có khoảng trắng
+	t.Run("SpecialValues", func(t *testing.T) {
+		err := rdb.Set("empty_val", "", 0).Err()
+		if err != nil {
+			t.Fatalf("Lỗi SET giá trị rỗng: %v", err)
+		}
+
+		val, _ := rdb.Get("empty_val").Result()
+		if val != "" {
+			t.Errorf("Mong đợi chuỗi rỗng, nhận được: '%s'", val)
+		}
+	})
+
+	// 5. Test tính đồng thời (Concurrency) - Tùy chọn
+	// Kiểm tra xem IoMultiplexingServer có thực sự xử lý được nhiều request cùng lúc không
+	t.Run("ConcurrentSet", func(t *testing.T) {
+		done := make(chan bool)
+		for i := 0; i < 10; i++ {
+			go func(id int) {
+				rdb.Set("concurrent_key", id, 0)
+				done <- true
+			}(i)
+		}
+		for i := 0; i < 10; i++ {
+			<-done
 		}
 	})
 }

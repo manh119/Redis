@@ -146,8 +146,8 @@ func handleCommand(decodeRequest any) (any, error) {
 		return core.HandleDel(cmd)
 	case "exists":
 		return core.HandleExists(cmd)
-		//case "sadd":
-		//return core.HandleSetAdd(cmd)
+	case "sadd":
+		return core.HandleSetAdd(cmd)
 	}
 	return "", nil
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net"
-	"strconv"
 	"syscall"
 
 	"github.com/manh119/Redis/internal/core"
@@ -28,6 +27,9 @@ func RunIoMultiplexingServer() {
 	defer file.Close()
 	fdListener := int(file.Fd())
 	syscall.SetNonblock(fdListener, true)
+
+	// 0. init dictionary
+	core.InitDictStore()
 
 	// 1. create epoll instance
 	fdEpoll, err := syscall.EpollCreate1(0)
@@ -131,117 +133,23 @@ func handleCommand(decodeRequest any) (any, error) {
 
 	switch cmd.Cmd {
 	case "ping":
-		return handlePing(cmd)
+		return core.HandlePing(cmd)
 	case "get":
-		return handleGet(cmd)
+		return core.HandleGet(cmd)
 	case "set":
-		return handleSet(cmd)
+		return core.HandleSet(cmd)
 	case "ttl":
-		return handleTTL(cmd)
+		return core.HandleTTL(cmd)
 	case "expire":
-		return handleExpire(cmd)
+		return core.HandleExpire(cmd)
 	case "del":
-		return handleDel(cmd)
+		return core.HandleDel(cmd)
 	case "exists":
-		return handleExists(cmd)
+		return core.HandleExists(cmd)
+		//case "sadd":
+		//return core.HandleSetAdd(cmd)
 	}
 	return "", nil
-}
-
-func handleTTL(cmd core.Command) (any, error) {
-	if len(cmd.Args) == 1 {
-		key, ok := cmd.Args[0].(string)
-		if !ok {
-			return "", errors.New("ERR value is not a valid string")
-		}
-		return dictStore.Ttl(key), nil
-	}
-	return "", errors.New("invalid command")
-}
-
-func handlePing(cmd core.Command) (string, error) {
-	if cmd.Args == nil || len(cmd.Args) == 0 {
-		return "pong", nil
-	}
-
-	if len(cmd.Args) == 1 {
-		return cmd.Args[0].(string), nil
-	}
-
-	return "", errors.New("invalid command")
-}
-
-func handleGet(cmd core.Command) (any, error) {
-	if len(cmd.Args) == 1 {
-		key, ok := cmd.Args[0].(string)
-		if !ok {
-			return "", errors.New("ERR value is not a valid string")
-		}
-		return dictStore.Get(key), nil
-	}
-	return "", errors.New("invalid command")
-}
-
-// expire key 100s
-func handleExpire(cmd core.Command) (any, error) {
-	if len(cmd.Args) == 2 {
-		key, ok := cmd.Args[0].(string)
-		if !ok {
-			return "", errors.New("ERR value is not a valid string")
-		}
-		ttlStr, ok := cmd.Args[1].(string)
-		if !ok {
-			return "", errors.New("ERR value is not an integer or out of range")
-		}
-		parsedTTL, err := strconv.ParseInt(ttlStr, 10, 64)
-		if err != nil {
-			return "", errors.New("ERR value is not an integer or out of range")
-		}
-		return dictStore.Expire(key, parsedTTL*1000), nil
-	}
-	return "", errors.New("invalid number of args")
-}
-
-// exists key1 key2 -> 2
-func handleExists(cmd core.Command) (any, error) {
-	if len(cmd.Args) == 0 {
-		return "", errors.New("invalid number of args")
-	}
-	return dictStore.Exists(cmd.Args), nil
-}
-
-// del key1 key2
-func handleDel(cmd core.Command) (any, error) {
-	if len(cmd.Args) == 0 {
-		return "", errors.New("invalid number of args")
-	}
-	return dictStore.Del(cmd.Args), nil
-}
-
-func handleSet(cmd core.Command) (string, error) {
-	argCount := len(cmd.Args)
-	if argCount != 2 && argCount != 4 {
-		return "", errors.New("ERR wrong number of arguments for 'set' command")
-	}
-	key, ok1 := cmd.Args[0].(string)
-	if !ok1 {
-		return "", errors.New("ERR key must be a string")
-	}
-	value := cmd.Args[1]
-	var ttl int64 = -1
-	if argCount == 4 {
-		ttlStr, ok := cmd.Args[3].(string)
-		if !ok {
-			return "", errors.New("ERR value is not an integer or out of range")
-		}
-		parsedTTL, err := strconv.ParseInt(ttlStr, 10, 64)
-		if err != nil {
-			return "", errors.New("ERR value is not an integer or out of range")
-		}
-		ttl = parsedTTL
-	}
-	dictStore.Set(key, value, ttl*1000)
-	return "OK", nil
 }
 
 func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {

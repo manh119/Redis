@@ -2,8 +2,10 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
+	"strings"
 	"syscall"
 
 	"github.com/manh119/Redis/internal/core"
@@ -27,9 +29,6 @@ func RunIoMultiplexingServer() {
 	defer file.Close()
 	fdListener := int(file.Fd())
 	syscall.SetNonblock(fdListener, true)
-
-	// 0. init dictionary
-	core.InitDictStore()
 
 	// 1. create epoll instance
 	fdEpoll, err := syscall.EpollCreate1(0)
@@ -122,34 +121,43 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 
 func handleCommand(decodeRequest any) (any, error) {
 	arr, ok := decodeRequest.([]any)
-	if !ok {
-		return "", errors.New("invalid command")
-	}
-	if decodeRequest == nil || len(arr) == 0 {
+	if !ok || decodeRequest == nil || len(arr) == 0 {
 		return "", errors.New("invalid command")
 	}
 
-	cmd := core.Command{Cmd: arr[0].(string), Args: arr[1:]}
+	cmdName, cmd := convertToCommand(arr)
 
-	switch cmd.Cmd {
-	case "ping":
+	switch cmdName {
+	case "PING":
 		return core.HandlePing(cmd)
-	case "get":
+	case "GET":
 		return core.HandleGet(cmd)
-	case "set":
+	case "SET":
 		return core.HandleSet(cmd)
-	case "ttl":
+	case "TTL":
 		return core.HandleTTL(cmd)
-	case "expire":
+	case "EXPIRE":
 		return core.HandleExpire(cmd)
-	case "del":
+	case "DEL":
 		return core.HandleDel(cmd)
-	case "exists":
+	case "EXISTS":
 		return core.HandleExists(cmd)
-	case "sadd":
-		return core.HandleSetAdd(cmd)
+		//case "sadd":
+		//	return core.HandleSetAdd(cmd)
 	}
 	return "", nil
+}
+
+func convertToCommand(arr []any) (string, *core.Command) {
+	cmdName := arr[0].(string)
+	cmdName = strings.ToUpper(cmdName)
+	var args []string
+	for i := 1; i < len(arr); i++ {
+		args = append(args, fmt.Sprintf("%v", arr[i]))
+	}
+
+	cmd := core.NewCommand(cmdName, args)
+	return cmdName, cmd
 }
 
 func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {

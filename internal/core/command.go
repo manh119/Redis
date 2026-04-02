@@ -5,6 +5,8 @@ import (
 	"strconv"
 )
 
+// example: set key value EX 100
+// => cmd = set, args = ["key", "value", "EX", "100"]
 type Command struct {
 	Cmd  string
 	args []string

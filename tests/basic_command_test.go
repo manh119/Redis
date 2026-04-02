@@ -78,7 +78,7 @@ func TestRedisCommands22(t *testing.T) {
 	go server.RunIoMultiplexingServer()
 	time.Sleep(200 * time.Millisecond)
 
-	rdb := setupClient()
+	rdb := SetupClient()
 
 	// 1. Test SET & GET cơ bản
 	t.Run("BasicSetGet", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestRedisCommands22(t *testing.T) {
 }
 
 func TestRedisAdvancedCommands(t *testing.T) {
-	rdb := setupClient()
+	rdb := SetupClient()
 	//ctx := context.Background() // v6 có thể không cần ctx nhưng nên tập thói quen dùng
 
 	// --- NHÓM TEST EXISTS (5 cases) ---

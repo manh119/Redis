@@ -6,22 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis"
 	"github.com/manh119/Redis/server"
 )
-
-func setupClient() *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Addr: "localhost:4000",
-	})
-}
 
 func TestRedisSetCommands(t *testing.T) {
 	// Khởi động server
 	go server.RunIoMultiplexingServer()
 	time.Sleep(200 * time.Millisecond)
 
-	rdb := setupClient()
+	rdb := SetupClient()
 
 	// Helper để dọn dẹp sau mỗi test case
 	flush := func() { rdb.FlushDB() }

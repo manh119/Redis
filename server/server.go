@@ -142,8 +142,17 @@ func handleCommand(decodeRequest any) (any, error) {
 		return core.HandleDel(cmd)
 	case "EXISTS":
 		return core.HandleExists(cmd)
-		//case "sadd":
-		//	return core.HandleSetAdd(cmd)
+	case "SADD":
+		return core.HandleSetAdd(cmd)
+	case "SISMEMBER":
+		return core.HandleSISMEMBER(cmd)
+	case "SREM":
+		return core.HandleSREM(cmd)
+	case "SMEMBERS":
+		return core.HandleSMEMBERS(cmd)
+	case "FLUSHDB":
+		return core.HandleFlushDb(cmd)
+
 	}
 	return "", nil
 }

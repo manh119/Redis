@@ -9,11 +9,12 @@ import (
 	"syscall"
 
 	"github.com/manh119/Redis/internal/core"
+	"github.com/manh119/Redis/internal/core/config"
 	"github.com/manh119/Redis/internal/core/resp"
 )
 
 func RunIoMultiplexingServer() {
-	listener, err := net.Listen("tcp", ":4000")
+	listener, err := net.Listen(config.Protocol, config.Port)
 	if err != nil {
 		log.Fatal(err)
 	}

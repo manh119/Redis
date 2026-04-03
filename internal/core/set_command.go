@@ -14,6 +14,10 @@ func HandleSetAdd(cmd *Command) (int, error) {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 	key := cmd.args[0]
+	existInDict := dictStore.Exists(cmd.args[:1])
+	if existInDict > 0 {
+		return 0, errors.New("WRONGTYPE Operation against a key holding the wrong kind of value")
+	}
 	set, exists := setStore[key]
 	if !exists {
 		set = data_structure.NewSet()
@@ -30,9 +34,12 @@ func HandleSISMEMBER(cmd *Command) (int, error) {
 	if argCount != 2 {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
+
 	key := cmd.args[0]
-	_, exists := setStore[key]
-	if exists {
+	value := cmd.args[1]
+
+	set, exists := setStore[key]
+	if exists && set.IsMember(value) {
 		return 1, nil
 	}
 	return 0, nil
@@ -64,7 +71,8 @@ func HandleSMEMBERS(cmd *Command) ([]string, error) {
 	if !exists {
 		return nil, nil
 	}
-	return set.Members(), nil
+	members := set.Members()
+	return members, nil
 }
 
 // flush all

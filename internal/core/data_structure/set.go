@@ -41,3 +41,8 @@ func (s *Set) Members() []string {
 	}
 	return members
 }
+
+func (set *Set) IsMember(s string) bool {
+	_, exist := set.members[s]
+	return exist
+}

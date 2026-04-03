@@ -208,9 +208,17 @@ func Encode(response any) (string, error) {
 			sb.WriteString(encodedEle)
 		}
 		return sb.String(), nil
+	case []string:
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("*%d\r\n", len(value)))
+		for _, s := range value {
+			encodedEle, _ := Encode(s)
+			sb.WriteString(encodedEle)
+		}
+		return sb.String(), nil
 	case error:
 		return fmt.Sprintf("-%s\r\n", value), nil
 	default:
-		return "", errors.New("type is not supported")
+		return "", errors.New(fmt.Sprintf("type %s is not supported", value))
 	}
 }

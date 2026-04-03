@@ -195,6 +195,11 @@ func TestEncode(t *testing.T) {
 			expected: "*2\r\n+PING\r\n:100\r\n",
 		},
 		{
+			name:     "Array of String",
+			input:    []string{"PING", "100"},
+			expected: "*2\r\n+PING\r\n+100\r\n",
+		},
+		{
 			name:     "Nested Array",
 			input:    []any{[]any{"echo", "hi"}},
 			expected: "*1\r\n*2\r\n+echo\r\n+hi\r\n",

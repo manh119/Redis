@@ -9,11 +9,8 @@ import (
 	"syscall"
 
 	"github.com/manh119/Redis/internal/core"
-	"github.com/manh119/Redis/internal/core/data_structure"
 	"github.com/manh119/Redis/internal/core/resp"
 )
-
-var dictStore = data_structure.NewDictionary()
 
 func RunIoMultiplexingServer() {
 	listener, err := net.Listen("tcp", ":4000")
@@ -86,7 +83,13 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 
 	// n == 0 nghĩa là client đóng connection
 	if n == 0 {
-		syscall.Close(fd)
+		connEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fd)}
+		err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_DEL, fd, connEvent)
+		err := syscall.Close(fd)
+		if err != nil {
+			log.Printf(err.Error())
+			return
+		}
 		return
 	}
 
@@ -109,11 +112,16 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	// 2. read command
 	response, err := handleCommand(decodeRequest)
 	if err != nil {
+		log.Printf(err.Error())
 		response = err
 	}
 
 	// 3. encode response
 	encodedRes, err := resp.Encode(response)
+	if err != nil {
+		log.Printf("Error encode %s", err.Error())
+		return
+	}
 
 	// 4. response
 	syscall.Write(fd, []byte(encodedRes))

@@ -2,7 +2,9 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 )
 
 // example: set key value EX 100
@@ -83,15 +85,38 @@ func HandleSet(cmd *Command) (string, error) {
 	}
 	key := cmd.args[0]
 	value := cmd.args[1]
-	var ttlInSecond int64 = -1
+	var ttl int64 = -1
 	if argCount == 4 {
 		ttlStr := cmd.args[3]
 		parsedTTL, err := strconv.ParseInt(ttlStr, 10, 64)
 		if err != nil {
 			return "", errors.New("ERR value is not an integer or out of range")
 		}
-		ttlInSecond = parsedTTL
+		ttl = parsedTTL
+		if strings.ToUpper(cmd.args[2]) == "EX" {
+			dictStore.Set(key, value, ttl*1000)
+		} else if strings.ToUpper(cmd.args[2]) == "PX" { // ttl in miliSecond
+			dictStore.Set(key, value, ttl)
+		} else {
+			return "", errors.New("ERR unknown command")
+		}
 	}
-	dictStore.Set(key, value, ttlInSecond*1000)
+	dictStore.Set(key, value, ttl)
 	return "OK", nil
+}
+
+// PERSIST key -> set ttl = -1 if key is valid
+func HandlePERSIST(cmd *Command) (int, error) {
+	argCount := len(cmd.args)
+	if argCount != 1 {
+		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+	}
+	key := cmd.args[0]
+	n := dictStore.Exists(cmd.args[:1])
+	if n > 0 {
+		value := dictStore.Get(key)
+		dictStore.Set(key, value, -1)
+		return 1, nil
+	}
+	return 0, nil
 }

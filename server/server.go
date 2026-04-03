@@ -160,9 +160,12 @@ func handleCommand(decodeRequest any) (any, error) {
 		return core.HandleSMEMBERS(cmd)
 	case "FLUSHDB":
 		return core.HandleFlushDb(cmd)
+	case "PERSIST":
+		return core.HandlePERSIST(cmd)
+	default:
+		return nil, errors.New("invalid command")
 
 	}
-	return "", nil
 }
 
 func convertToCommand(arr []any) (string, *core.Command) {

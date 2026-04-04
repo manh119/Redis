@@ -4,6 +4,7 @@ import "github.com/manh119/Redis/internal/core/data_structure"
 
 var dictStore *data_structure.Dictionary
 var setStore map[string]*data_structure.Set
+var skipListStore map[string]*data_structure.SkipList
 
 func init() {
 	InitStorage()
@@ -12,4 +13,5 @@ func init() {
 func InitStorage() {
 	dictStore = data_structure.NewDictionary()
 	setStore = make(map[string]*data_structure.Set)
+	skipListStore = make(map[string]*data_structure.SkipList)
 }

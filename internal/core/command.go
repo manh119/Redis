@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/manh119/Redis/internal/core/data_structure"
 )
 
 // example: set key value EX 100
@@ -120,3 +122,113 @@ func HandlePERSIST(cmd *Command) (int, error) {
 	}
 	return 0, nil
 }
+
+// SADD key 1 2 3 4 5 -> 5
+func HandleSetAdd(cmd *Command) (int, error) {
+	argCount := len(cmd.args)
+	if argCount < 1 {
+		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+	}
+	key := cmd.args[0]
+	existInDict := dictStore.Exists(cmd.args[:1])
+	if existInDict > 0 {
+		return 0, errors.New("WRONGTYPE Operation against a key holding the wrong kind of value")
+	}
+	set, exists := setStore[key]
+	if !exists {
+		set = data_structure.NewSet()
+		setStore[key] = set
+	}
+	added := set.Add(cmd.args[1:]...)
+	return added, nil
+}
+
+// SISMEMBER key valueExist -> 1
+// SISMEMBER key valueNotExist -> 0
+func HandleSISMEMBER(cmd *Command) (int, error) {
+	argCount := len(cmd.args)
+	if argCount != 2 {
+		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+	}
+
+	key := cmd.args[0]
+	value := cmd.args[1]
+
+	set, exists := setStore[key]
+	if exists && set.IsMember(value) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+// SREM key value1 value2 -> 2
+func HandleSREM(cmd *Command) (int, error) {
+	argCount := len(cmd.args)
+	if argCount < 1 {
+		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+	}
+	key := cmd.args[0]
+	set, exists := setStore[key]
+	if !exists {
+		return 0, nil
+	}
+	removed := set.Remove(cmd.args[1:]...)
+	return removed, nil
+}
+
+// SMEMBERS key -> list member
+func HandleSMEMBERS(cmd *Command) ([]string, error) {
+	argCount := len(cmd.args)
+	if argCount != 1 {
+		return nil, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+	}
+	key := cmd.args[0]
+	set, exists := setStore[key]
+	if !exists {
+		return nil, nil
+	}
+	members := set.Members()
+	return members, nil
+}
+
+// flush all
+func HandleFlushDb(cmd *Command) (int, error) {
+	InitStorage()
+	return 1, nil
+}
+
+// ZADD myzset score(float64) member -> 1
+func HandleZADD(cmd *Command) (int, error) {
+	argCount := len(cmd.args)
+	if argCount < 3 || (argCount-1)%2 != 0 {
+		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+	}
+	key := cmd.args[0]
+	skipList, exist := skipListStore[key]
+	if !exist {
+		skipList = data_structure.NewSkipList()
+	}
+
+	for i := 1; i < argCount; i = i + 2 {
+		score, err := strconv.ParseFloat(cmd.args[i], 64)
+		if err != nil {
+			return 0, errors.New("value is not a valid float")
+		}
+		value := cmd.args[i+1]
+		skipList.Insert(value, score)
+	}
+	return (argCount - 1) / 2, nil
+}
+
+//// ZSCORE myzset "one"
+//func HandleZSCORE(cmd *Command) (string, error) {
+//	argCount := len(cmd.args)
+//	if argCount < 2 {
+//		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+//	}
+//	key := cmd.args[0]
+//	skipList, exist := skipListStore[key]
+//	if !exist {
+//		return nil, nil
+//	}
+//}

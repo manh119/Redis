@@ -163,6 +163,8 @@ func handleCommand(decodeRequest any) (any, error) {
 		return core.HandleFlushDb(cmd)
 	case "PERSIST":
 		return core.HandlePERSIST(cmd)
+	case "ZADD":
+		return core.HandleZADD(cmd)
 	default:
 		return nil, errors.New("invalid command")
 

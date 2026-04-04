@@ -6,8 +6,9 @@ const MaxLevel = 40
 const Probability = 0.25
 
 type SkipList struct {
-	level  int
-	header *Node
+	level         int
+	header        *Node
+	valueStoreMap map[string]float64
 }
 
 // forward[0] = next node in level 0, forward[1] = next node in level 1
@@ -20,8 +21,9 @@ type Node struct {
 // level in 0-based index
 func NewSkipList() *SkipList {
 	return &SkipList{
-		level:  0,
-		header: NewNode("", 0, MaxLevel), // virtual header
+		level:         0,
+		header:        NewNode("", 0, MaxLevel), // virtual header
+		valueStoreMap: make(map[string]float64),
 	}
 }
 
@@ -57,6 +59,7 @@ func (sl *SkipList) Insert(value string, score float64) {
 	}
 
 	// 3. insert to all level
+	sl.valueStoreMap[value] = score
 	newNode := NewNode(value, score, levelInsert)
 	for i := 0; i <= levelInsert; i++ {
 		newNode.forward[i] = update[i].forward[i]
@@ -80,4 +83,8 @@ func (sl *SkipList) Search(score float64) *Node {
 		return current.forward[0]
 	}
 	return nil
+}
+
+func (sl *SkipList) getScore(value string) float64 {
+	return sl.valueStoreMap[value]
 }

@@ -74,10 +74,9 @@ func (sl *SkipList) Insert(value string, score float64) {
 	sl.valueStoreMap[value] = score
 	newNode := NewNode(value, score, levelInsert)
 	for i := 0; i <= levelInsert; i++ {
-		// update span
 		updateSpan := update[i].span[i]
 		update[i].span[i] = (updateSpan + 1) / 2
-		newNode.span[i] = updateSpan - update[i].span[i]
+		newNode.span[i] = updateSpan + 1 - update[i].span[i]
 
 		// update link node
 		newNode.forward[i] = update[i].forward[i]
@@ -106,29 +105,25 @@ func (sl *SkipList) Search(value string) *Node {
 	return nil
 }
 
-func (sl *SkipList) GetRank(key string) (int, error) {
-	score := sl.valueStoreMap[key]
+func (sl *SkipList) GetRank(value string) (int, error) {
+	score, exist := sl.valueStoreMap[value]
+	if !exist {
+		return -1, nil
+	}
 	current := sl.header
-	spanEachLevel := make([]int, sl.level+1)
-	// 			   1      ->      6	-> 7
-	// skip list : 1 -> 3 -> 5 -> 6 -> 7
-	// search node 5 -> try to find node 3 in level 0
+	rank := 0
 	for i := sl.level; i >= 0; i-- {
-		for current.forward[i] != nil && current.forward[i].score < score {
+		for current.forward[i] != nil && (current.forward[i].score <= score ||
+			(current.forward[i].score == score && strings.Compare(current.forward[i].value, value) == 0)) {
+			rank += current.forward[i].span[i]
+			if current.forward[i].value == value {
+				return rank - 1, nil
+			}
 			current = current.forward[i]
 		}
-		spanEachLevel[i] = current.span[i]
 	}
 
-	// try compare next node in level 0
-	if current != nil && current.forward[0].score == score {
-		rank := 0
-		for _, span := range spanEachLevel {
-			rank += span
-		}
-		return rank, nil
-	}
-	return 0, error(nil)
+	return -1, nil
 }
 
 func (sl *SkipList) GetScore(value string) (float64, error) {

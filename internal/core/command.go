@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/manh119/Redis/internal/core/constant"
 	"github.com/manh119/Redis/internal/core/data_structure"
 )
 
@@ -252,20 +253,20 @@ func HandleZSCORE(cmd *Command) (any, error) {
 }
 
 // ZRANK myzset three -> 3
-func HandleZRANK(cmd *Command) (int, error) {
+func HandleZRANK(cmd *Command) (any, error) {
 	argCount := len(cmd.args)
 	if argCount < 2 {
-		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
+		return 0, fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 	key := cmd.args[0]
 	skipList, exist := skipListStore[key]
 	if !exist {
-		return 0, error(nil)
+		return constant.NILL, nil
 	}
 	value := cmd.args[1]
 	rank, err := skipList.GetRank(value)
-	if nil != err {
-		return 0, err
+	if err != nil || rank < 0 {
+		return constant.NILL, err
 	}
 	return rank, nil
 }

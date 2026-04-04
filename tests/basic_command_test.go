@@ -5,16 +5,17 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
-	"github.com/manh119/Redis/server"
 )
 
 // Khởi tạo client dùng chung cho các test
 func SetupClientAndServer() *redis.Client {
-	go server.RunIoMultiplexingServer()
-	time.Sleep(200 * time.Millisecond)
+	//go server.RunIoMultiplexingServer()
+	//time.Sleep(200 * time.Millisecond)
 
 	return redis.NewClient(&redis.Options{
-		Addr: "localhost:4000",
+		Addr:         "localhost:4000",
+		ReadTimeout:  100 * time.Second,
+		WriteTimeout: 100 * time.Second,
 	})
 }
 

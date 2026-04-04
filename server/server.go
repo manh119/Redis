@@ -10,6 +10,7 @@ import (
 
 	"github.com/manh119/Redis/internal/core"
 	"github.com/manh119/Redis/internal/core/config"
+	"github.com/manh119/Redis/internal/core/constant"
 	"github.com/manh119/Redis/internal/core/resp"
 )
 
@@ -56,8 +57,8 @@ func RunIoMultiplexingServer() {
 			currentFd := bufferEvents[i].Fd
 			if currentFd == int32(fdListener) {
 				fdConn, connAdrr, err := syscall.Accept(fdListener)
-				ip, port := parseSockaddr(connAdrr)
-				log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
+				//ip, port := parseSockaddr(connAdrr)
+				//log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
 				if err != nil {
 					log.Printf("error connect to %s with error : %s", connAdrr, err.Error())
 					continue
@@ -71,7 +72,7 @@ func RunIoMultiplexingServer() {
 					log.Printf(err.Error())
 				}
 			} else {
-				log.Printf("new change from fd : %d", currentFd)
+				//log.Printf("new change from fd : %d", currentFd)
 				readCommandAndReponse(fdEpoll, int(currentFd))
 			}
 		}
@@ -108,7 +109,7 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 		log.Printf("Error decode")
 		return
 	}
-	log.Printf("decodeMess: %s", decodeRequest)
+	log.Printf("decodedMess: %s", decodeRequest)
 
 	// 2. read command
 	response, err := handleCommand(decodeRequest)
@@ -118,13 +119,17 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	}
 
 	// 3. encode response
-	encodedRes, err := resp.Encode(response)
-	if err != nil {
-		log.Printf("Error encode %s", err.Error())
-		return
+	encodedRes := constant.NILL
+	if response != constant.NILL {
+		encodedRes, err = resp.Encode(response)
+		if err != nil {
+			log.Printf("Error encode %s", err.Error())
+			return
+		}
 	}
 
 	// 4. response
+	log.Printf("encodeMess: %s", encodedRes)
 	syscall.Write(fd, []byte(encodedRes))
 }
 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/manh119/Redis/internal/core/constant"
 )
 
 const CRLF string = "\r\n"
@@ -192,7 +194,7 @@ func encodeStringArray(sa []string) []byte {
 func Encode(response any) (string, error) {
 	switch value := response.(type) {
 	case nil:
-		return "$-1\r\n", nil
+		return constant.NILL, nil
 	case string: // simple string
 		return fmt.Sprintf("+%s\r\n", value), nil
 	case int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8:

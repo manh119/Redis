@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/go-redis/redis"
 )
@@ -38,6 +39,7 @@ func TestRedisSortedSetAdvanced(t *testing.T) {
 			t.Errorf("Cập nhật score không nên tính là member mới")
 		}
 		s, _ := rdb.ZScore("z", "a").Result()
+		time.Sleep(1000 * time.Millisecond)
 		if s != 5 {
 			t.Errorf("Score chưa được cập nhật")
 		}
@@ -49,6 +51,15 @@ func TestRedisSortedSetAdvanced(t *testing.T) {
 		s, _ := rdb.ZScore("z", "pi").Result()
 		if s != 3.14 {
 			t.Errorf("Lỗi lưu trữ số thực")
+		}
+	})
+
+	t.Run("4_ZADD_IntScore", func(t *testing.T) {
+		flush()
+		rdb.ZAdd("z", redis.Z{Score: 3, Member: "pi"})
+		s, _ := rdb.ZScore("z", "pi").Result()
+		if s != 3 {
+			t.Errorf("Lỗi lưu trữ số int")
 		}
 	})
 

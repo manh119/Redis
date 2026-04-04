@@ -4,17 +4,10 @@ import (
 	"reflect"
 	"sort"
 	"testing"
-	"time"
-
-	"github.com/manh119/Redis/server"
 )
 
 func TestRedisSetCommands(t *testing.T) {
-	// Khởi động server
-	go server.RunIoMultiplexingServer()
-	time.Sleep(200 * time.Millisecond)
-
-	rdb := SetupClient()
+	rdb := SetupClientAndServer()
 
 	// Helper để dọn dẹp sau mỗi test case
 	flush := func() { rdb.FlushDB() }

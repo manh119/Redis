@@ -17,6 +17,10 @@ A simple client-server application written in Go using a **thread-per-connection
 
 ### Basic function with redis-cli
 ![img_3.png](img_3.png)
+
+### Skip list for sorted set
+![img_4.png](img_4.png)
+
 ## Project Structure
 
 ```

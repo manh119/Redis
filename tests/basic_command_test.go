@@ -9,17 +9,17 @@ import (
 )
 
 // Khởi tạo client dùng chung cho các test
-func SetupClient() *redis.Client {
+func SetupClientAndServer() *redis.Client {
+	go server.RunIoMultiplexingServer()
+	time.Sleep(200 * time.Millisecond)
+
 	return redis.NewClient(&redis.Options{
 		Addr: "localhost:4000",
 	})
 }
 
 func TestRedisCommands(t *testing.T) {
-	go server.RunIoMultiplexingServer()
-	time.Sleep(200 * time.Millisecond)
-
-	rdb := SetupClient()
+	rdb := SetupClientAndServer()
 
 	// 1. Test lệnh SET
 	t.Run("TestSET", func(t *testing.T) {

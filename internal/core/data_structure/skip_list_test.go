@@ -26,7 +26,7 @@ func TestSkipList_InsertAndSearch(t *testing.T) {
 
 	// Kiểm tra tìm kiếm các phần tử đã chèn
 	for _, d := range data {
-		node := sl.Search(d.score)
+		node := sl.Search(d.val)
 		if node == nil {
 			t.Errorf("Expected to find node with value %s, but got nil", d.val)
 		} else if node.value != d.val || node.score != d.score {
@@ -40,7 +40,7 @@ func TestSkipList_SearchNonExistent(t *testing.T) {
 	sl := NewSkipList()
 	sl.Insert("Exist", 100)
 
-	tests := []float64{1, 2, 0}
+	tests := []string{"notExist", ""}
 
 	for _, val := range tests {
 		node := sl.Search(val)
@@ -55,8 +55,8 @@ func TestSkipList_Ordering(t *testing.T) {
 
 	// Chèn không theo thứ tự
 	scores := []float64{50, 10, 30, 20, 40}
-	for _, s := range scores {
-		sl.Insert("val", s)
+	for i, s := range scores {
+		sl.Insert(fmt.Sprintf("val%d", i), s)
 	}
 
 	// Duyệt tầng 0 từ header
@@ -78,19 +78,38 @@ func TestSkipList_Ordering(t *testing.T) {
 	}
 }
 
-func TestSkipList_Stress(t *testing.T) {
+func TestSkipList_InsertAndDelete(t *testing.T) {
 	sl := NewSkipList()
-	n := 1000
 
-	for i := 0; i < n; i++ {
-		val := fmt.Sprintf("val%d", i)
-		sl.Insert(val, float64(i))
+	// Dữ liệu mẫu
+	data := []struct {
+		val   string
+		score float64
+	}{
+		{"A", 10.5},
+		{"B", 20.0},
+		{"C", 5.5},
+		{"D", 30.2},
 	}
 
-	// Kiểm tra ngẫu nhiên một vài phần tử
-	target := 500
-	node := sl.Search(float64(target))
-	if node == nil || node.score != 500.0 {
-		t.Errorf("Stress test failed: could not find target node")
+	for _, d := range data {
+		sl.Insert(d.val, d.score)
+	}
+
+	sl.Delete("A")
+	sl.Delete("B")
+
+	if sl.Search("A") != nil || sl.Search("B") != nil {
+		t.Errorf("Expected to not find node, but got node")
+	}
+
+	nodeC := sl.Search("C")
+	nodeD := sl.Search("D")
+	if nodeC == nil || nodeD == nil {
+		t.Errorf("Expected to find node, but got nil")
+	}
+
+	if nodeC.value != "C" || nodeC.score != 5.5 || nodeD.value != "D" || nodeD.score != 30.2 {
+		t.Errorf("value and score is not correct")
 	}
 }

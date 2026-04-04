@@ -5,15 +5,11 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
-	"github.com/manh119/Redis/server"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRedisAdvancedCommands(t *testing.T) {
-	// Khởi động server một lần duy nhất
-	go server.RunIoMultiplexingServer()
-	time.Sleep(200 * time.Millisecond)
-	rdb := SetupClient()
+	rdb := SetupClientAndServer()
 
 	// --- NHÓM TEST EXISTS ---
 	t.Run("EXISTS", func(t *testing.T) {

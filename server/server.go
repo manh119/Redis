@@ -165,6 +165,10 @@ func handleCommand(decodeRequest any) (any, error) {
 		return core.HandlePERSIST(cmd)
 	case "ZADD":
 		return core.HandleZADD(cmd)
+	case "ZSCORE":
+		return core.HandleZSCORE(cmd)
+	case "ZRANK":
+		return core.HandleZRANK(cmd)
 	default:
 		return nil, errors.New("invalid command")
 

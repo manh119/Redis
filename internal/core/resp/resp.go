@@ -195,8 +195,11 @@ func Encode(response any) (string, error) {
 		return "$-1\r\n", nil
 	case string: // simple string
 		return fmt.Sprintf("+%s\r\n", value), nil
-	case int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8: // digital
+	case int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8:
 		return fmt.Sprintf(":%d\r\n", value), nil
+	case float64, float32:
+		valStr := fmt.Sprintf("%g", value)
+		return fmt.Sprintf("$%d\r\n%s\r\n", len(valStr), valStr), nil
 	case []byte: // bulk string
 		return fmt.Sprintf("$%d\r\n%s\r\n", len(value), string(value)), nil
 	case []any:

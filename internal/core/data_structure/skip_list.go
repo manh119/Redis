@@ -1,21 +1,28 @@
 package data_structure
 
-import "math/rand"
+import (
+	"errors"
+	"math/rand"
+	"strings"
+)
 
 const MaxLevel = 40
 const Probability = 0.25
 
 type SkipList struct {
-	level         int
+	level         int // level 0-based index
 	header        *Node
 	valueStoreMap map[string]float64
 }
 
 // forward[0] = next node in level 0, forward[1] = next node in level 1
+// span = distance to the next node at a level
+// span[0] = span at level 0 is alway is 1
 type Node struct {
 	value   string
 	score   float64
 	forward []*Node
+	span    []int
 }
 
 // level in 0-based index
@@ -28,14 +35,18 @@ func NewSkipList() *SkipList {
 }
 
 func NewNode(value string, score float64, levelNode int) *Node {
-	return &Node{
+	newNode := &Node{
 		value:   value,
 		score:   score,
 		forward: make([]*Node, levelNode+1),
+		span:    make([]int, levelNode+1),
 	}
+	newNode.span[0] = 1
+	return newNode
 }
 
 // sorted by score
+// if score is equal, sort by value
 func (sl *SkipList) Insert(value string, score float64) {
 	// 1. find level of new node by random
 	levelInsert := 0
@@ -52,7 +63,8 @@ func (sl *SkipList) Insert(value string, score float64) {
 	update := make([]*Node, sl.level+1)
 	current := sl.header
 	for i := sl.level; i >= 0; i-- {
-		for current.forward[i] != nil && current.forward[i].score < score {
+		for current.forward[i] != nil && (current.forward[i].score < score ||
+			(current.forward[i].score == score && strings.Compare(current.forward[i].value, value) == -1)) {
 			current = current.forward[i]
 		}
 		update[i] = current
@@ -62,18 +74,27 @@ func (sl *SkipList) Insert(value string, score float64) {
 	sl.valueStoreMap[value] = score
 	newNode := NewNode(value, score, levelInsert)
 	for i := 0; i <= levelInsert; i++ {
+		// update span
+		updateSpan := update[i].span[i]
+		update[i].span[i] = (updateSpan + 1) / 2
+		newNode.span[i] = updateSpan - update[i].span[i]
+
+		// update link node
 		newNode.forward[i] = update[i].forward[i]
 		update[i].forward[i] = newNode
 	}
 }
 
-func (sl *SkipList) Search(score float64) *Node {
+// return nill if don't exist value in skipList
+func (sl *SkipList) Search(value string) *Node {
+	score := sl.valueStoreMap[value]
 	current := sl.header
 	// 			   1      ->      6	-> 7
 	// skip list : 1 -> 3 -> 5 -> 6 -> 7
 	// search node 5 -> try to find node 3 in level 0
 	for i := sl.level; i >= 0; i-- {
-		for current.forward[i] != nil && current.forward[i].score < score {
+		for current.forward[i] != nil && (current.forward[i].score < score ||
+			(current.forward[i].score == score && strings.Compare(current.forward[i].value, value) == -1)) {
 			current = current.forward[i]
 		}
 	}
@@ -85,6 +106,67 @@ func (sl *SkipList) Search(score float64) *Node {
 	return nil
 }
 
-func (sl *SkipList) getScore(value string) float64 {
-	return sl.valueStoreMap[value]
+func (sl *SkipList) GetRank(key string) (int, error) {
+	score := sl.valueStoreMap[key]
+	current := sl.header
+	spanEachLevel := make([]int, sl.level+1)
+	// 			   1      ->      6	-> 7
+	// skip list : 1 -> 3 -> 5 -> 6 -> 7
+	// search node 5 -> try to find node 3 in level 0
+	for i := sl.level; i >= 0; i-- {
+		for current.forward[i] != nil && current.forward[i].score < score {
+			current = current.forward[i]
+		}
+		spanEachLevel[i] = current.span[i]
+	}
+
+	// try compare next node in level 0
+	if current != nil && current.forward[0].score == score {
+		rank := 0
+		for _, span := range spanEachLevel {
+			rank += span
+		}
+		return rank, nil
+	}
+	return 0, error(nil)
+}
+
+func (sl *SkipList) GetScore(value string) (float64, error) {
+	score, exist := sl.valueStoreMap[value]
+	if !exist {
+		return 0, errors.New("value not exist")
+	}
+	return score, nil
+}
+
+func (sl *SkipList) Delete(value string) (int, error) {
+	score, exist := sl.valueStoreMap[value]
+	if !exist {
+		return 0, nil
+	}
+
+	// find all ref in all level need to delete
+	update := make([]*Node, sl.level+1)
+	current := sl.header
+	for i := sl.level; i >= 0; i-- {
+		for current.forward[i] != nil && (current.forward[i].score < score ||
+			(current.forward[i].score == score && strings.Compare(current.forward[i].value, value) == -1)) {
+			current = current.forward[i]
+		}
+		update[i] = current
+	}
+
+	// not exist node to delete
+	if current == nil || current.forward[0].score != score || current.forward[0].value != value {
+		return 0, nil
+	}
+
+	// delete to all level
+	delete(sl.valueStoreMap, value)
+	for i := 0; i <= sl.level; i++ {
+		deletedNode := update[i].forward[i]
+		update[i].span[i] = update[i].span[i] + deletedNode.span[i] - 1
+		update[i].forward[i] = deletedNode.forward[i]
+	}
+	return 1, nil
 }

@@ -1,6 +1,8 @@
 package tests
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestBloomFilterV6(t *testing.T) {
 	rdb := SetupClientAndServer()
@@ -41,13 +43,6 @@ func TestBloomFilterV6(t *testing.T) {
 			}
 		})
 
-		//t.Run("TC-05_ExpansionOption", func(t *testing.T) {
-		//	// Kiểm tra tùy chọn EXPANSION và NONSCALING
-		//	err := rdb.Do("BF.RESERVE", "bf:nonscaling", 0.01, 100, "NONSCALING").Err()
-		//	if err != nil {
-		//		t.Fatalf("Lỗi khi dùng tùy chọn NONSCALING: %v", err)
-		//	}
-		//})
 	})
 
 	// ==========================================
@@ -185,18 +180,6 @@ func TestBloomFilterV6(t *testing.T) {
 				t.Error("Không xử lý được ký tự đặc biệt")
 			}
 		})
-
-		//t.Run("TC-19_LargeBatch_MAdd", func(t *testing.T) {
-		//	items := make([]interface{}, 101)
-		//	items[0] = "bf:batch"
-		//	for i := 1; i <= 100; i++ {
-		//		items[i] = i
-		//	}
-		//	err := rdb.Do("BF.MADD", items...).Err()
-		//	if err != nil {
-		//		t.Errorf("Lỗi khi MADD số lượng lớn: %v", err)
-		//	}
-		//})
 
 		t.Run("TC-20_CaseSensitivity", func(t *testing.T) {
 			rdb.Do("BF.MADD", key, "Redis")

@@ -390,6 +390,11 @@ func HandleMADD(cmd *Command) ([]uint64, error) {
 	}
 
 	key := cmd.args[0]
+	existInDictStore := dictStore.Get(key)
+	if existInDictStore != nil {
+		return nil, fmt.Errorf("SET %s already exists, wrong type for add bloom filter", key)
+	}
+
 	bf, exist := bloomFilterStore[key]
 	if !exist {
 		bf = data_structure.NewBloomFilter(0.01, 100)
@@ -421,16 +426,16 @@ func HandleMEXISTS(cmd *Command) ([]uint64, error) {
 
 	key := cmd.args[0]
 	bf, exist := bloomFilterStore[key]
+	counts := make([]uint64, argCount-1)
 	if !exist {
-		return nil, fmt.Errorf("BLOOM FILTER %s doensn't exist", key)
+		return counts, nil
 	}
 
-	counts := make([]uint64, argCount-1)
 	for i := 1; i < argCount; i++ {
 		if bf.Exist(cmd.args[i]) {
-			counts[i-1] = 0
-		} else {
 			counts[i-1] = 1
+		} else {
+			counts[i-1] = 0
 		}
 	}
 

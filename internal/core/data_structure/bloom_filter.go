@@ -43,6 +43,7 @@ func (bf *BloomFilter) SetBit(index uint64) {
 	word := index / 64
 	bit := index % 64
 	bf.bitset[word] = bf.bitset[word] | (1 << bit)
+	// fmt.Println(strconv.FormatUint(bf.bitset[word], 2))
 }
 
 func (bf *BloomFilter) IsSet(index uint64) bool {
@@ -51,13 +52,12 @@ func (bf *BloomFilter) IsSet(index uint64) bool {
 	word := index / 64
 	bit := index % 64
 
-	isSet := bf.bitset[word] & (1 << bit)
-	return isSet == 1
+	isSet := (bf.bitset[word]) & (1 << bit)
+	return isSet>>bit == 1
 }
 
 func (bf *BloomFilter) Add(item string) {
-	h1 := murmur3.SeedSum64(0, []byte(item))
-	h2 := murmur3.SeedSum64(1, []byte(item))
+	h1, h2 := murmur3.SeedSum128(0, 1, []byte(item))
 
 	for hashFunc := uint64(0); hashFunc < bf.hashes; hashFunc++ {
 		combinedHash := h1 + hashFunc*h2
@@ -66,8 +66,7 @@ func (bf *BloomFilter) Add(item string) {
 }
 
 func (bf *BloomFilter) Exist(item string) bool {
-	h1 := murmur3.SeedSum64(0, []byte(item))
-	h2 := murmur3.SeedSum64(1, []byte(item))
+	h1, h2 := murmur3.SeedSum128(0, 1, []byte(item))
 
 	for hashFunc := uint64(0); hashFunc < bf.hashes; hashFunc++ {
 		combinedHash := h1 + hashFunc*h2

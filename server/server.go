@@ -174,8 +174,14 @@ func handleCommand(decodeRequest any) (any, error) {
 		return core.HandleZSCORE(cmd)
 	case "ZRANK":
 		return core.HandleZRANK(cmd)
+	case "CMS.INITBYPROB":
+		return core.HandleINITBYPROB(cmd)
+	case "CMS.INCRBY":
+		return core.HandleINCRBY(cmd)
+	case "CMS.QUERY":
+		return core.HandleQUERY(cmd)
 	default:
-		return nil, errors.New("invalid command")
+		return nil, errors.New("command is not supported")
 
 	}
 }

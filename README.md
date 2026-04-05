@@ -21,6 +21,8 @@ A simple client-server application written in Go using a **thread-per-connection
 ### Skip list for sorted set
 ![img_4.png](img_4.png)
 
+### Count min sketch for 100M element ~ 8MB
+![img_5.png](img_5.png)
 ## Project Structure
 
 ```

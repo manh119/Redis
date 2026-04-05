@@ -1,11 +1,11 @@
-package tests
+package command_tests
 
 import (
 	"testing"
 	"time"
 
 	"github.com/go-redis/redis"
-	"github.com/manh119/Redis/server"
+	"github.com/manh119/Redis/internal/core/server"
 )
 
 // Khởi tạo client dùng chung cho các test

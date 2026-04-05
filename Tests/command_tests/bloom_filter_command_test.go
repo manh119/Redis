@@ -1,10 +1,10 @@
-package tests
+package command_tests
 
 import (
 	"testing"
 )
 
-func TestBloomFilterV6(t *testing.T) {
+func TestBloomFilter(t *testing.T) {
 	rdb := SetupClientAndServer()
 
 	// ==========================================

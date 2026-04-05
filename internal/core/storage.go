@@ -2,20 +2,20 @@ package core
 
 import "github.com/manh119/Redis/internal/core/data_structure"
 
-var dictStore *data_structure.Dictionary
-var setStore map[string]*data_structure.Set
-var skipListStore map[string]*data_structure.SkipList
-var cmsStore map[string]*data_structure.CMS
-var bloomFilterStore map[string]*data_structure.BloomFilter
+var DictStore *data_structure.Dictionary
+var SetStore map[string]*data_structure.Set
+var SkipListStore map[string]*data_structure.SkipList
+var CmsStore map[string]*data_structure.CMS
+var BloomFilterStore map[string]*data_structure.BloomFilter
 
 func init() {
 	InitStorage()
 }
 
 func InitStorage() {
-	dictStore = data_structure.NewDictionary()
-	setStore = make(map[string]*data_structure.Set)
-	skipListStore = make(map[string]*data_structure.SkipList)
-	cmsStore = make(map[string]*data_structure.CMS)
-	bloomFilterStore = make(map[string]*data_structure.BloomFilter)
+	DictStore = data_structure.NewDictionary()
+	SetStore = make(map[string]*data_structure.Set)
+	SkipListStore = make(map[string]*data_structure.SkipList)
+	CmsStore = make(map[string]*data_structure.CMS)
+	BloomFilterStore = make(map[string]*data_structure.BloomFilter)
 }

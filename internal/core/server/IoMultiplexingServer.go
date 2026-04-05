@@ -1,16 +1,12 @@
 package server
 
 import (
-	"errors"
-	"fmt"
 	"log"
 	"net"
-	"strings"
 	"syscall"
 
-	"github.com/manh119/Redis/internal/core"
+	"github.com/manh119/Redis/internal/core/command"
 	"github.com/manh119/Redis/internal/core/config"
-	"github.com/manh119/Redis/internal/core/constant"
 	"github.com/manh119/Redis/internal/core/resp"
 )
 
@@ -112,15 +108,15 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	log.Printf("decodedMess: %s", decodeRequest)
 
 	// 2. read command
-	response, err := handleCommand(decodeRequest)
+	response, err := command.HandleCommand(decodeRequest)
 	if err != nil {
 		log.Printf(err.Error())
 		response = err
 	}
 
 	// 3. encode response
-	encodedRes := constant.NILL
-	if response != constant.NILL {
+	encodedRes := config.NILL
+	if response != config.NILL {
 		encodedRes, err = resp.Encode(response)
 		if err != nil {
 			log.Printf("Error encode %s", err.Error())
@@ -131,77 +127,6 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	// 4. response
 	log.Printf("encodeMess: %s", encodedRes)
 	syscall.Write(fd, []byte(encodedRes))
-}
-
-func handleCommand(decodeRequest any) (any, error) {
-	arr, ok := decodeRequest.([]any)
-	if !ok || decodeRequest == nil || len(arr) == 0 {
-		return "", errors.New("invalid command")
-	}
-
-	cmdName, cmd := convertToCommand(arr)
-
-	switch cmdName {
-	case "PING":
-		return core.HandlePing(cmd)
-	case "GET":
-		return core.HandleGet(cmd)
-	case "SET":
-		return core.HandleSet(cmd)
-	case "TTL":
-		return core.HandleTTL(cmd)
-	case "EXPIRE":
-		return core.HandleExpire(cmd)
-	case "DEL":
-		return core.HandleDel(cmd)
-	case "EXISTS":
-		return core.HandleExists(cmd)
-	case "SADD":
-		return core.HandleSetAdd(cmd)
-	case "SISMEMBER":
-		return core.HandleSISMEMBER(cmd)
-	case "SREM":
-		return core.HandleSREM(cmd)
-	case "SMEMBERS":
-		return core.HandleSMEMBERS(cmd)
-	case "FLUSHDB":
-		return core.HandleFlushDb(cmd)
-	case "PERSIST":
-		return core.HandlePERSIST(cmd)
-	case "ZADD":
-		return core.HandleZADD(cmd)
-	case "ZSCORE":
-		return core.HandleZSCORE(cmd)
-	case "ZRANK":
-		return core.HandleZRANK(cmd)
-	case "CMS.INITBYPROB":
-		return core.HandleINITBYPROB(cmd)
-	case "CMS.INCRBY":
-		return core.HandleINCRBY(cmd)
-	case "CMS.QUERY":
-		return core.HandleQUERY(cmd)
-	case "BF.RESERVE":
-		return core.HandleRESERVE(cmd)
-	case "BF.MADD":
-		return core.HandleMADD(cmd)
-	case "BF.MEXISTS":
-		return core.HandleMEXISTS(cmd)
-	default:
-		return nil, errors.New("command is not supported")
-
-	}
-}
-
-func convertToCommand(arr []any) (string, *core.Command) {
-	cmdName := arr[0].(string)
-	cmdName = strings.ToUpper(cmdName)
-	var args []string
-	for i := 1; i < len(arr); i++ {
-		args = append(args, fmt.Sprintf("%v", arr[i]))
-	}
-
-	cmd := core.NewCommand(cmdName, args)
-	return cmdName, cmd
 }
 
 func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {

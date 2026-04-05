@@ -1,4 +1,4 @@
-package tests
+package command_tests
 
 //
 //func TestBloomFilterPerformance(t *testing.T) {

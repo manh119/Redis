@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -192,6 +193,37 @@ func encodeStringArray(sa []string) []byte {
 }
 
 func Encode(response any) (string, error) {
+	if response == nil {
+		return constant.NILL, nil
+	}
+
+	// handle slice, array
+	val := reflect.ValueOf(response)
+	kind := val.Kind()
+
+	if kind == reflect.Slice || kind == reflect.Array {
+		// Exceptional: []byte -> Bulk String ($), not Array (*)
+		if kind == reflect.Slice && val.Type().Elem().Kind() == reflect.Uint8 {
+			bytes := response.([]byte)
+			return fmt.Sprintf("$%d\r\n%s\r\n", len(bytes), string(bytes)), nil
+		}
+
+		// handle Array (*)
+		var sb strings.Builder
+		n := val.Len()
+		sb.WriteString(fmt.Sprintf("*%d\r\n", n))
+
+		for i := 0; i < n; i++ {
+			encodedEle, err := Encode(val.Index(i).Interface())
+			if err != nil {
+				return "", err
+			}
+			sb.WriteString(encodedEle)
+		}
+		return sb.String(), nil
+	}
+
+	// other case
 	switch value := response.(type) {
 	case nil:
 		return constant.NILL, nil
@@ -202,27 +234,6 @@ func Encode(response any) (string, error) {
 	case float64, float32:
 		valStr := fmt.Sprintf("%g", value)
 		return fmt.Sprintf("$%d\r\n%s\r\n", len(valStr), valStr), nil
-	case []byte: // bulk string
-		return fmt.Sprintf("$%d\r\n%s\r\n", len(value), string(value)), nil
-	case []any:
-		var sb strings.Builder
-		sb.WriteString((fmt.Sprintf("*%d\r\n", len(value))))
-		for _, elem := range value {
-			encodedEle, err := Encode(elem)
-			if err != nil {
-				return "", err
-			}
-			sb.WriteString(encodedEle)
-		}
-		return sb.String(), nil
-	case []string:
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("*%d\r\n", len(value)))
-		for _, s := range value {
-			encodedEle, _ := Encode(s)
-			sb.WriteString(encodedEle)
-		}
-		return sb.String(), nil
 	case error:
 		return fmt.Sprintf("-%s\r\n", value), nil
 	default:

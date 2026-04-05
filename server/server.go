@@ -180,6 +180,12 @@ func handleCommand(decodeRequest any) (any, error) {
 		return core.HandleINCRBY(cmd)
 	case "CMS.QUERY":
 		return core.HandleQUERY(cmd)
+	case "BF.RESERVE":
+		return core.HandleRESERVE(cmd)
+	case "BF.MADD":
+		return core.HandleMADD(cmd)
+	case "BF.MEXISTS":
+		return core.HandleMEXISTS(cmd)
 	default:
 		return nil, errors.New("command is not supported")
 

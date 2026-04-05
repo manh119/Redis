@@ -6,6 +6,7 @@ var dictStore *data_structure.Dictionary
 var setStore map[string]*data_structure.Set
 var skipListStore map[string]*data_structure.SkipList
 var cmsStore map[string]*data_structure.CMS
+var bloomFilterStore map[string]*data_structure.BloomFilter
 
 func init() {
 	InitStorage()
@@ -16,4 +17,5 @@ func InitStorage() {
 	setStore = make(map[string]*data_structure.Set)
 	skipListStore = make(map[string]*data_structure.SkipList)
 	cmsStore = make(map[string]*data_structure.CMS)
+	bloomFilterStore = make(map[string]*data_structure.BloomFilter)
 }

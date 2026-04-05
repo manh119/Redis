@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+// TODO : performance test cms with 100M element
+// measure memory used
+// check the error and rate
+// TODO : review mean of error rate and ??
+// TODO ưu nhược điểm CMS + so sánh với hyper log log
+// có thể dùng thay thế cho nhau được ko
 func TestCountMinSketchV6(t *testing.T) {
 	rdb := SetupClientAndServer()
 

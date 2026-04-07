@@ -49,8 +49,9 @@ func HandleMADD(cmd *Command) ([]uint64, error) {
 	}
 
 	key := cmd.args[0]
-	existInDictStore := core.DictStore.Get(key)
-	if existInDictStore != nil {
+
+	_, err := core.DictStore.Get(key)
+	if err == nil {
 		return nil, fmt.Errorf("SET %s already exists, wrong type for add bloom filter", key)
 	}
 

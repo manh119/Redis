@@ -1,36 +1,55 @@
 package data_structure
 
 import (
+	"errors"
 	"time"
+
+	"github.com/manh119/Redis/internal/core/config"
 )
 
 type Dictionary struct {
-	dictStore        map[string]any   // key -> value
+	dictStore        map[string]*Obj  // key -> value
 	expiredDictStore map[string]int64 // key -> TTL
+}
+
+type Obj struct {
+	Value          string
+	LastAccessTime uint32
+}
+
+func NewObj(value string) *Obj {
+	return &Obj{
+		Value:          value,
+		LastAccessTime: now(),
+	}
+}
+
+func now() uint32 {
+	return uint32(time.Now().Unix())
 }
 
 func NewDictionary() *Dictionary {
 	return &Dictionary{
-		dictStore:        make(map[string]any),
+		dictStore:        make(map[string]*Obj),
 		expiredDictStore: make(map[string]int64),
 	}
 }
 
-func (dict *Dictionary) Get(key string) any {
+func (dict *Dictionary) Get(key string) (string, error) {
 	if dict.dictStore[key] == nil {
-		return nil
+		return "", errors.New(config.NILL)
 	}
 	if dict.expiredDictStore[key] == -1 || dict.expiredDictStore[key] > time.Now().UnixMilli() {
-		return dict.dictStore[key]
+		return dict.dictStore[key].Value, nil
 	} else {
 		delete(dict.dictStore, key)
 		delete(dict.expiredDictStore, key)
-		return nil
+		return "", errors.New(config.NILL)
 	}
 }
 
-func (dict *Dictionary) Set(key string, value any, ttlInMs int64) {
-	dict.dictStore[key] = value
+func (dict *Dictionary) Set(key string, value string, ttlInMs int64) {
+	dict.dictStore[key] = NewObj(value)
 	if ttlInMs < 0 {
 		dict.expiredDictStore[key] = -1
 	} else {

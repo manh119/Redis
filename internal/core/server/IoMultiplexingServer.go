@@ -111,17 +111,24 @@ func readCommandAndReponse(fdEpoll int, fd int) {
 	response, err := command.HandleCommand(decodeRequest)
 	if err != nil {
 		log.Printf(err.Error())
-		response = err
-	}
-
-	// 3. encode response
-	encodedRes := config.NILL
-	if response != config.NILL {
-		encodedRes, err = resp.Encode(response)
+		if err.Error() == config.NILL {
+			syscall.Write(fd, []byte(config.NILL))
+			return
+		}
+		resError, err := resp.Encode(err)
 		if err != nil {
 			log.Printf("Error encode %s", err.Error())
 			return
 		}
+		syscall.Write(fd, []byte(resError))
+		return
+	}
+
+	// 3. encode response
+	encodedRes, err := resp.Encode(response)
+	if err != nil {
+		log.Printf("Error encode %s", err.Error())
+		return
 	}
 
 	// 4. response

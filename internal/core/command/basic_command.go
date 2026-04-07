@@ -30,10 +30,14 @@ func HandlePing(cmd *Command) (string, error) {
 	return "", errors.New("invalid command")
 }
 
-func HandleGet(cmd *Command) (any, error) {
+func HandleGet(cmd *Command) (string, error) {
 	if len(cmd.args) == 1 {
 		key := cmd.args[0]
-		return core.DictStore.Get(key), nil
+		value, err := core.DictStore.Get(key)
+		if err != nil {
+			return "", err
+		}
+		return value, nil
 	}
 	return "", errors.New("invalid command")
 }
@@ -106,7 +110,10 @@ func HandlePERSIST(cmd *Command) (int, error) {
 	key := cmd.args[0]
 	n := core.DictStore.Exists(cmd.args[:1])
 	if n > 0 {
-		value := core.DictStore.Get(key)
+		value, err := core.DictStore.Get(key)
+		if err != nil {
+			return 0, err
+		}
 		core.DictStore.Set(key, value, -1)
 		return 1, nil
 	}

@@ -1,6 +1,7 @@
 package command_tests
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -89,5 +90,19 @@ func TestRedisAdvancedCommands(t *testing.T) {
 			assert.True(t, ok)
 			assert.Equal(t, -1, int(rdb.TTL("per").Val().Seconds()))
 		})
+	})
+
+	// 20. Test Concurrent Access
+	t.Run("TestConcurrency", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		for i := 0; i < 1000; i++ {
+			wg.Add(1)
+			go func(val int) {
+				defer wg.Done()
+				rdb.Set("counter", val, 0)
+				rdb.Get("counter")
+			}(i)
+		}
+		wg.Wait()
 	})
 }

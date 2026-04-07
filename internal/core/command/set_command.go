@@ -15,14 +15,14 @@ func HandleSetAdd(cmd *Command) (int, error) {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 	key := cmd.args[0]
-	existInDict := core.DictStore.Exists(cmd.args[:1])
+	existInDict := storage.DictStore.Exists(cmd.args[:1])
 	if existInDict > 0 {
 		return 0, errors.New("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
-	set, exists := core.SetStore[key]
+	set, exists := storage.SetStore[key]
 	if !exists {
 		set = data_structure.NewSet()
-		core.SetStore[key] = set
+		storage.SetStore[key] = set
 	}
 	added := set.Add(cmd.args[1:]...)
 	return added, nil
@@ -39,7 +39,7 @@ func HandleSISMEMBER(cmd *Command) (int, error) {
 	key := cmd.args[0]
 	value := cmd.args[1]
 
-	set, exists := core.SetStore[key]
+	set, exists := storage.SetStore[key]
 	if exists && set.IsMember(value) {
 		return 1, nil
 	}
@@ -53,7 +53,7 @@ func HandleSREM(cmd *Command) (int, error) {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 	key := cmd.args[0]
-	set, exists := core.SetStore[key]
+	set, exists := storage.SetStore[key]
 	if !exists {
 		return 0, nil
 	}
@@ -68,7 +68,7 @@ func HandleSMEMBERS(cmd *Command) ([]string, error) {
 		return nil, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 	key := cmd.args[0]
-	set, exists := core.SetStore[key]
+	set, exists := storage.SetStore[key]
 	if !exists {
 		return nil, nil
 	}

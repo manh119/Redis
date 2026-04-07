@@ -1,4 +1,4 @@
-package core
+package storage
 
 import "github.com/manh119/Redis/internal/core/data_structure"
 

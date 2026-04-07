@@ -1,4 +1,4 @@
-package command_tests
+package Tests
 
 import (
 	"sync"

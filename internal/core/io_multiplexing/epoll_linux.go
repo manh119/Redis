@@ -6,7 +6,7 @@ import (
 	"log"
 	"syscall"
 
-	"github.com/manh119/Redis/internal/core/config"
+	"github.com/manh119/Redis/internal/core"
 )
 
 type Epoll struct {
@@ -25,8 +25,8 @@ func CreateIOMultiplexer() (*Epoll, error) {
 
 	return &Epoll{
 		fd:            epollFD,
-		epollEvents:   make([]syscall.EpollEvent, config.MaxConnection),
-		genericEvents: make([]Event, config.MaxConnection),
+		epollEvents:   make([]syscall.EpollEvent, storage.MaxConnection),
+		genericEvents: make([]Event, storage.MaxConnection),
 	}, nil
 }
 

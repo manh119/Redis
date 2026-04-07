@@ -17,7 +17,7 @@ func HandleZADD(cmd *Command) (int, error) {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 	key := cmd.args[0]
-	skipList, exist := core.SkipListStore[key]
+	skipList, exist := storage.SkipListStore[key]
 	if !exist {
 		skipList = data_structure.NewSkipList()
 	}
@@ -41,7 +41,7 @@ func HandleZADD(cmd *Command) (int, error) {
 		}
 
 	}
-	core.SkipListStore[key] = skipList
+	storage.SkipListStore[key] = skipList
 	return added, nil
 }
 
@@ -52,7 +52,7 @@ func HandleZSCORE(cmd *Command) (any, error) {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 	key := cmd.args[0]
-	skipList, exist := core.SkipListStore[key]
+	skipList, exist := storage.SkipListStore[key]
 	if !exist {
 		return nil, nil
 	}
@@ -71,7 +71,7 @@ func HandleZRANK(cmd *Command) (any, error) {
 		return 0, fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 	key := cmd.args[0]
-	skipList, exist := core.SkipListStore[key]
+	skipList, exist := storage.SkipListStore[key]
 	if !exist {
 		return config.NILL, nil
 	}

@@ -19,7 +19,7 @@ func HandleINITBYPROB(cmd *Command) (string, error) {
 	}
 
 	key := cmd.args[0]
-	_, exist := core.CmsStore[key]
+	_, exist := storage.CmsStore[key]
 	if exist {
 		return "", fmt.Errorf("CMS: %s already exists", key)
 	}
@@ -34,7 +34,7 @@ func HandleINITBYPROB(cmd *Command) (string, error) {
 		return "", fmt.Errorf("Invalid argument probability value")
 	}
 
-	core.CmsStore[key] = data_structure.NewCMS(errorCms, probCms)
+	storage.CmsStore[key] = data_structure.NewCMS(errorCms, probCms)
 	return "OK", nil
 }
 
@@ -46,7 +46,7 @@ func HandleINCRBY(cmd *Command) ([]uint64, error) {
 	}
 
 	key := cmd.args[0]
-	cms, exist := core.CmsStore[key]
+	cms, exist := storage.CmsStore[key]
 	if !exist {
 		return nil, fmt.Errorf("CMS %s doesn't exist", key)
 	}
@@ -73,7 +73,7 @@ func HandleQUERY(cmd *Command) ([]uint64, error) {
 	}
 
 	key := cmd.args[0]
-	cms, exist := core.CmsStore[key]
+	cms, exist := storage.CmsStore[key]
 	if !exist {
 		return nil, fmt.Errorf("CMS %s doesn't exist", key)
 	}

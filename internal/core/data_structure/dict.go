@@ -2,14 +2,17 @@ package data_structure
 
 import (
 	"errors"
+	"log"
 	"time"
 
+	"github.com/manh119/Redis/internal/core"
 	"github.com/manh119/Redis/internal/core/config"
 )
 
 type Dictionary struct {
-	dictStore        map[string]*Obj  // key -> value
-	expiredDictStore map[string]int64 // key -> TTL
+	Dict        map[string]*Obj  // key -> value
+	ExpiredDict map[string]int64 // key -> TTL
+	NumberKey   int
 }
 
 type Obj struct {
@@ -30,38 +33,45 @@ func now() uint32 {
 
 func NewDictionary() *Dictionary {
 	return &Dictionary{
-		dictStore:        make(map[string]*Obj),
-		expiredDictStore: make(map[string]int64),
+		Dict:        make(map[string]*Obj),
+		ExpiredDict: make(map[string]int64),
+		NumberKey:   0,
 	}
 }
 
 func (dict *Dictionary) Get(key string) (string, error) {
-	if dict.dictStore[key] == nil {
+	if dict.Dict[key] == nil {
 		return "", errors.New(config.NILL)
 	}
-	if dict.expiredDictStore[key] == -1 || dict.expiredDictStore[key] > time.Now().UnixMilli() {
-		return dict.dictStore[key].Value, nil
+	if dict.ExpiredDict[key] == -1 || dict.ExpiredDict[key] > time.Now().UnixMilli() {
+		return dict.Dict[key].Value, nil
 	} else {
-		delete(dict.dictStore, key)
-		delete(dict.expiredDictStore, key)
+		delete(dict.Dict, key)
+		delete(dict.ExpiredDict, key)
 		return "", errors.New(config.NILL)
 	}
 }
 
 func (dict *Dictionary) Set(key string, value string, ttlInMs int64) {
-	dict.dictStore[key] = NewObj(value)
+	dict.Dict[key] = NewObj(value)
+
+	dict.NumberKey = dict.NumberKey + 1
+	if dict.NumberKey >= storage.MaxKeyNumber {
+		dict.Evict()
+	}
+
 	if ttlInMs < 0 {
-		dict.expiredDictStore[key] = -1
+		dict.ExpiredDict[key] = -1
 	} else {
-		dict.expiredDictStore[key] = time.Now().UnixMilli() + ttlInMs
+		dict.ExpiredDict[key] = time.Now().UnixMilli() + ttlInMs
 	}
 }
 
 func (dict *Dictionary) Ttl(key string) int64 {
-	if dict.dictStore[key] == nil {
+	if dict.Dict[key] == nil {
 		return -2
 	}
-	expiry, _ := dict.expiredDictStore[key]
+	expiry, _ := dict.ExpiredDict[key]
 	if expiry == -1 {
 		return -1
 	}
@@ -69,8 +79,8 @@ func (dict *Dictionary) Ttl(key string) int64 {
 	diff := expiry - now
 
 	if diff <= 0 {
-		delete(dict.dictStore, key)
-		delete(dict.expiredDictStore, key)
+		delete(dict.Dict, key)
+		delete(dict.ExpiredDict, key)
 		return -2
 	}
 
@@ -78,13 +88,13 @@ func (dict *Dictionary) Ttl(key string) int64 {
 }
 
 func (dict *Dictionary) Expire(key string, ttl int64) int {
-	if dict.dictStore[key] == nil {
+	if dict.Dict[key] == nil {
 		return 0
 	}
 	if ttl == -1 {
-		dict.expiredDictStore[key] = -1
+		dict.ExpiredDict[key] = -1
 	} else {
-		dict.expiredDictStore[key] = time.Now().UnixMilli() + ttl
+		dict.ExpiredDict[key] = time.Now().UnixMilli() + ttl
 	}
 	return 1
 }
@@ -92,8 +102,8 @@ func (dict *Dictionary) Expire(key string, ttl int64) int {
 func (dict *Dictionary) Exists(args []string) int {
 	count := 0
 	for _, key := range args {
-		if dict.dictStore[key] != nil &&
-			((dict.expiredDictStore[key] > time.Now().UnixMilli()) || dict.expiredDictStore[key] == -1) {
+		if dict.Dict[key] != nil &&
+			((dict.ExpiredDict[key] > time.Now().UnixMilli()) || dict.ExpiredDict[key] == -1) {
 			count++
 		}
 	}
@@ -103,12 +113,38 @@ func (dict *Dictionary) Exists(args []string) int {
 func (dict *Dictionary) Del(args []string) int {
 	count := 0
 	for _, key := range args {
-		if dict.dictStore[key] != nil &&
-			((dict.expiredDictStore[key] > time.Now().UnixMilli()) || dict.expiredDictStore[key] == -1) {
-			delete(dict.dictStore, key)
-			delete(dict.expiredDictStore, key)
+		if dict.Dict[key] != nil &&
+			((dict.ExpiredDict[key] > time.Now().UnixMilli()) || dict.ExpiredDict[key] == -1) {
+			delete(dict.Dict, key)
+			delete(dict.ExpiredDict, key)
 			count++
 		}
 	}
 	return count
+}
+
+func (dict *Dictionary) Evict() {
+	switch storage.EvictionPolicy {
+	case "allkeys-random":
+		dict.evictRandom()
+	case "allkeys-lru":
+		dict.evictLru()
+	}
+}
+
+func (dict *Dictionary) evictRandom() {
+	evictCount := int64(storage.EvictionRatio * float64(storage.MaxKeyNumber))
+	log.Print("trigger random eviction")
+	for key := range dict.Dict {
+		delete(dict.Dict, key)
+		delete(dict.ExpiredDict, key)
+		evictCount--
+		if evictCount == 0 {
+			break
+		}
+	}
+}
+
+func (dict *Dictionary) evictLru() {
+	ePool.Evict()
 }

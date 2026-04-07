@@ -18,7 +18,7 @@ func HandleRESERVE(cmd *Command) (string, error) {
 	}
 
 	key := cmd.args[0]
-	_, exist := core.BloomFilterStore[key]
+	_, exist := storage.BloomFilterStore[key]
 	if exist {
 		return "", fmt.Errorf("BLOOM FILTER %s already exist", key)
 	}
@@ -33,7 +33,7 @@ func HandleRESERVE(cmd *Command) (string, error) {
 		return "", fmt.Errorf("Entries is not valid value", key)
 	}
 
-	core.BloomFilterStore[key] = data_structure.NewBloomFilter(errorRate, entries)
+	storage.BloomFilterStore[key] = data_structure.NewBloomFilter(errorRate, entries)
 	return "OK", nil
 }
 
@@ -50,15 +50,15 @@ func HandleMADD(cmd *Command) ([]uint64, error) {
 
 	key := cmd.args[0]
 
-	_, err := core.DictStore.Get(key)
+	_, err := storage.DictStore.Get(key)
 	if err == nil {
 		return nil, fmt.Errorf("SET %s already exists, wrong type for add bloom filter", key)
 	}
 
-	bf, exist := core.BloomFilterStore[key]
+	bf, exist := storage.BloomFilterStore[key]
 	if !exist {
 		bf = data_structure.NewBloomFilter(0.01, 100)
-		core.BloomFilterStore[key] = bf
+		storage.BloomFilterStore[key] = bf
 	}
 
 	counts := make([]uint64, argCount-1)
@@ -85,7 +85,7 @@ func HandleMEXISTS(cmd *Command) ([]uint64, error) {
 	}
 
 	key := cmd.args[0]
-	bf, exist := core.BloomFilterStore[key]
+	bf, exist := storage.BloomFilterStore[key]
 	counts := make([]uint64, argCount-1)
 	if !exist {
 		return counts, nil

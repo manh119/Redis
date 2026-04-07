@@ -13,7 +13,7 @@ import (
 func HandleTTL(cmd *Command) (any, error) {
 	if len(cmd.args) == 1 {
 		key := cmd.args[0]
-		return core.DictStore.Ttl(key), nil
+		return storage.DictStore.Ttl(key), nil
 	}
 	return "", errors.New("invalid command")
 }
@@ -33,7 +33,7 @@ func HandlePing(cmd *Command) (string, error) {
 func HandleGet(cmd *Command) (string, error) {
 	if len(cmd.args) == 1 {
 		key := cmd.args[0]
-		value, err := core.DictStore.Get(key)
+		value, err := storage.DictStore.Get(key)
 		if err != nil {
 			return "", err
 		}
@@ -51,7 +51,7 @@ func HandleExpire(cmd *Command) (any, error) {
 		if err != nil {
 			return "", errors.New("ERR value is not an integer or out of range")
 		}
-		return core.DictStore.Expire(key, parsedTTL*1000), nil
+		return storage.DictStore.Expire(key, parsedTTL*1000), nil
 	}
 	return "", errors.New("invalid number of args")
 }
@@ -61,7 +61,7 @@ func HandleExists(cmd *Command) (any, error) {
 	if len(cmd.args) == 0 {
 		return "", errors.New("invalid number of args")
 	}
-	return core.DictStore.Exists(cmd.args), nil
+	return storage.DictStore.Exists(cmd.args), nil
 }
 
 // del key1 key2
@@ -69,7 +69,7 @@ func HandleDel(cmd *Command) (any, error) {
 	if len(cmd.args) == 0 {
 		return "", errors.New("invalid number of args")
 	}
-	return core.DictStore.Del(cmd.args), nil
+	return storage.DictStore.Del(cmd.args), nil
 }
 
 // set key value
@@ -90,14 +90,14 @@ func HandleSet(cmd *Command) (string, error) {
 		}
 		ttl = parsedTTL
 		if strings.ToUpper(cmd.args[2]) == "EX" {
-			core.DictStore.Set(key, value, ttl*1000)
+			storage.DictStore.Set(key, value, ttl*1000)
 		} else if strings.ToUpper(cmd.args[2]) == "PX" { // ttl in miliSecond
-			core.DictStore.Set(key, value, ttl)
+			storage.DictStore.Set(key, value, ttl)
 		} else {
 			return "", errors.New("ERR unknown command")
 		}
 	}
-	core.DictStore.Set(key, value, ttl)
+	storage.DictStore.Set(key, value, ttl)
 	return "OK", nil
 }
 
@@ -108,13 +108,13 @@ func HandlePERSIST(cmd *Command) (int, error) {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 	key := cmd.args[0]
-	n := core.DictStore.Exists(cmd.args[:1])
+	n := storage.DictStore.Exists(cmd.args[:1])
 	if n > 0 {
-		value, err := core.DictStore.Get(key)
+		value, err := storage.DictStore.Get(key)
 		if err != nil {
 			return 0, err
 		}
-		core.DictStore.Set(key, value, -1)
+		storage.DictStore.Set(key, value, -1)
 		return 1, nil
 	}
 	return 0, nil
@@ -122,6 +122,6 @@ func HandlePERSIST(cmd *Command) (int, error) {
 
 // flush all
 func HandleFlushDb(cmd *Command) (int, error) {
-	core.InitStorage()
+	storage.InitStorage()
 	return 1, nil
 }

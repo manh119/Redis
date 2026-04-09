@@ -5,14 +5,13 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/manh119/Redis/internal/core"
 	"github.com/manh119/Redis/internal/core/command"
 	"github.com/manh119/Redis/internal/core/config"
 	"github.com/manh119/Redis/internal/core/resp"
 )
 
 func RunIoMultiplexingServer() {
-	listener, err := net.Listen(storage.Protocol, storage.Port)
+	listener, err := net.Listen(config.Protocol, config.Port)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,30 +52,34 @@ func RunIoMultiplexingServer() {
 		for i := 0; i < n; i++ {
 			currentFd := bufferEvents[i].Fd
 			if currentFd == int32(fdListener) {
-				fdConn, connAdrr, err := syscall.Accept(fdListener)
-				//ip, port := parseSockaddr(connAdrr)
-				//log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
-				if err != nil {
-					log.Printf("error connect to %s with error : %s", connAdrr, err.Error())
-					continue
-				}
-				syscall.SetNonblock(fdConn, true)
-
-				// 4. add new connection to the epoll to monitor
-				connEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdConn)}
-				err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdConn, connEvent)
-				if err != nil {
-					log.Printf(err.Error())
-				}
+				handleNewConnection(fdListener, fdEpoll)
 			} else {
 				//log.Printf("new change from fd : %d", currentFd)
-				readCommandAndReponse(fdEpoll, int(currentFd))
+				handleClientCommand(fdEpoll, int(currentFd))
 			}
 		}
 	}
 }
 
-func readCommandAndReponse(fdEpoll int, fd int) {
+func handleNewConnection(fdListener int, fdEpoll int) {
+	fdConn, connAdrr, err := syscall.Accept(fdListener)
+	//ip, port := parseSockaddr(connAdrr)
+	//log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
+	if err != nil {
+		log.Printf("error connect to %s with error : %s", connAdrr, err.Error())
+		return
+	}
+	syscall.SetNonblock(fdConn, true)
+
+	// 4. add new connection to the epoll to monitor
+	connEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdConn)}
+	err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdConn, connEvent)
+	if err != nil {
+		log.Printf(err.Error())
+	}
+}
+
+func handleClientCommand(fdEpoll int, fd int) {
 	buffer := make([]byte, 1024)
 	n, err := syscall.Read(fd, buffer)
 

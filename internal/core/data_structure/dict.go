@@ -5,8 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/manh119/Redis/internal/core"
-	"github.com/manh119/Redis/internal/core/config"
+	"github.com/manh119/Redis/internal/config"
 )
 
 type Dictionary struct {
@@ -56,7 +55,7 @@ func (dict *Dictionary) Set(key string, value string, ttlInMs int64) {
 	dict.Dict[key] = NewObj(value)
 
 	dict.NumberKey = dict.NumberKey + 1
-	if dict.NumberKey >= storage.MaxKeyNumber {
+	if dict.NumberKey >= config.MaxKeyNumber {
 		dict.Evict()
 	}
 
@@ -124,7 +123,7 @@ func (dict *Dictionary) Del(args []string) int {
 }
 
 func (dict *Dictionary) Evict() {
-	switch storage.EvictionPolicy {
+	switch config.EvictionPolicy {
 	case "allkeys-random":
 		dict.evictRandom()
 	case "allkeys-lru":
@@ -133,7 +132,7 @@ func (dict *Dictionary) Evict() {
 }
 
 func (dict *Dictionary) evictRandom() {
-	evictCount := int64(storage.EvictionRatio * float64(storage.MaxKeyNumber))
+	evictCount := int64(config.EvictionRatio * float64(config.MaxKeyNumber))
 	log.Print("trigger random eviction")
 	for key := range dict.Dict {
 		delete(dict.Dict, key)
@@ -146,5 +145,5 @@ func (dict *Dictionary) evictRandom() {
 }
 
 func (dict *Dictionary) evictLru() {
-	ePool.Evict()
+	//ePool.Evict()
 }

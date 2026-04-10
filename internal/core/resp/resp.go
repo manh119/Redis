@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/manh119/Redis/internal/core/config"
+	"github.com/manh119/Redis/internal/config"
 )
 
 const CRLF string = "\r\n"

@@ -3,14 +3,20 @@ package server
 import (
 	"log"
 	"net"
+	"sync"
+	"sync/atomic"
 	"syscall"
 
+	"github.com/manh119/Redis/internal/config"
 	"github.com/manh119/Redis/internal/core/command"
-	"github.com/manh119/Redis/internal/core/config"
 	"github.com/manh119/Redis/internal/core/resp"
 )
 
-func RunIoMultiplexingServer() {
+var ShutdownAsap atomic.Int32
+
+func RunIoMultiplexingServer(wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	listener, err := net.Listen(config.Protocol, config.Port)
 	if err != nil {
 		log.Fatal(err)
@@ -43,10 +49,19 @@ func RunIoMultiplexingServer() {
 	// 3. wait for new event in the epoll, event loop
 	bufferEvents := make([]syscall.EpollEvent, 100)
 	for {
+		if ShutdownAsap.Load() == 1 {
+			prepareForShutDown(listener)
+			return
+		}
 		n, err := syscall.EpollWait(fdEpoll, bufferEvents, -1)
 		if err != nil {
 			log.Printf(err.Error())
 			continue
+		}
+
+		if ShutdownAsap.Load() == 1 {
+			prepareForShutDown(listener)
+			return
 		}
 
 		for i := 0; i < n; i++ {
@@ -54,7 +69,6 @@ func RunIoMultiplexingServer() {
 			if currentFd == int32(fdListener) {
 				handleNewConnection(fdListener, fdEpoll)
 			} else {
-				//log.Printf("new change from fd : %d", currentFd)
 				handleClientCommand(fdEpoll, int(currentFd))
 			}
 		}
@@ -63,8 +77,8 @@ func RunIoMultiplexingServer() {
 
 func handleNewConnection(fdListener int, fdEpoll int) {
 	fdConn, connAdrr, err := syscall.Accept(fdListener)
-	//ip, port := parseSockaddr(connAdrr)
-	//log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
+	ip, port := parseSockaddr(connAdrr)
+	log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
 	if err != nil {
 		log.Printf("error connect to %s with error : %s", connAdrr, err.Error())
 		return
@@ -138,6 +152,21 @@ func handleClientCommand(fdEpoll int, fd int) {
 	// 4. response
 	log.Printf("encodeMess: %s", encodedRes)
 	syscall.Write(fd, []byte(encodedRes))
+}
+
+func prepareForShutDown(listener net.Listener) {
+
+	// pause all clients
+	log.Printf("listener closed")
+	err := listener.Close()
+	if err != nil {
+		log.Printf(err.Error())
+		return
+	}
+
+	// wait for current commands to finish
+
+	// 3.
 }
 
 func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/manh119/Redis/internal/config"
 	"github.com/manh119/Redis/internal/core"
-	"github.com/manh119/Redis/internal/core/config"
 	"github.com/manh119/Redis/internal/core/data_structure"
 )
 

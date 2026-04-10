@@ -1,5 +1,5 @@
 # Binaries
-/internal/core/server/server
+/server/server
 /client/client
 *.exe
 *.exe~

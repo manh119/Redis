@@ -3,9 +3,10 @@ package data_structure
 import (
 	"sort"
 
-	"github.com/manh119/Redis/internal/core/config"
+	"github.com/manh119/Redis/internal/config"
 )
 
+var EpoolMaxSize = 20
 var ePool *EvictionPool = NewEvictionPool(0)
 
 // Approximated Least recently used

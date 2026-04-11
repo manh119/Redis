@@ -10,6 +10,7 @@ import (
 
 	"github.com/manh119/Redis/internal/config"
 	"github.com/manh119/Redis/internal/core/command"
+	"github.com/manh119/Redis/internal/core/io_multiplexing"
 	"github.com/manh119/Redis/internal/core/resp"
 )
 
@@ -33,46 +34,43 @@ func RunIoMultiplexingServer(wg *sync.WaitGroup) {
 	syscall.SetNonblock(fdListener, true)
 
 	// 1. create epoll instance
-	fdEpoll, err := syscall.EpollCreate1(0)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer syscall.Close(fdEpoll)
+	multiplexer, err := io_multiplexing.CreateIOMultiplexer()
+	defer multiplexer.Close()
 
 	// 2. add tcp connection to the epoll to handle new connection
-	listenerEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdListener)}
-	err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdListener, listenerEvent)
+	err = multiplexer.Monitor(io_multiplexing.Event{
+		fdListener, io_multiplexing.OpRead,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("Server is listening on port%s ...", config.Port)
 
 	// 3. wait for new event in the epoll, event loop
-	bufferEvents := make([]syscall.EpollEvent, 100)
 	for {
 		if atomic.LoadInt32(&ServerStatus) == config.ServerStatusShuttingDown {
-			handleCleanup(fdEpoll, listener)
+			handleCleanup(multiplexer, listener)
 			return
 		}
 
-		n, err := syscall.EpollWait(fdEpoll, bufferEvents, 100)
+		events, err := multiplexer.Wait()
 		if err != nil {
 			log.Printf(err.Error())
 			continue
 		}
 
-		for i := 0; i < n; i++ {
-			currentFd := bufferEvents[i].Fd
-			if currentFd == int32(fdListener) {
-				handleNewConnection(fdListener, fdEpoll)
+		for i := 0; i < len(events); i++ {
+			currentFd := events[i].Fd
+			if currentFd == fdListener {
+				handleNewConnection(multiplexer, fdListener)
 			} else {
-				handleClientCommand(fdEpoll, int(currentFd))
+				handleClientCommand(multiplexer, currentFd)
 			}
 		}
 	}
 }
 
-func handleNewConnection(fdListener int, fdEpoll int) {
+func handleNewConnection(multiplexer *io_multiplexing.Epoll, fdListener int) {
 	fdConn, connAdrr, err := syscall.Accept(fdListener)
 	ip, port := parseSockaddr(connAdrr)
 	log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
@@ -83,21 +81,21 @@ func handleNewConnection(fdListener int, fdEpoll int) {
 	syscall.SetNonblock(fdConn, true)
 
 	// 4. add new connection to the epoll to monitor
-	connEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fdConn)}
-	err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_ADD, fdConn, connEvent)
+	err = multiplexer.Monitor(io_multiplexing.Event{
+		fdConn, io_multiplexing.OpRead,
+	})
 	if err != nil {
 		log.Printf(err.Error())
 	}
 }
 
-func handleClientCommand(fdEpoll int, fd int) {
+func handleClientCommand(multiplexer *io_multiplexing.Epoll, fd int) {
 	buffer := make([]byte, 1024)
 	n, err := syscall.Read(fd, buffer)
 
 	// n == 0 nghĩa là client đóng connection
 	if n == 0 {
-		connEvent := &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fd)}
-		err = syscall.EpollCtl(fdEpoll, syscall.EPOLL_CTL_DEL, fd, connEvent)
+		multiplexer.Close()
 		err := syscall.Close(fd)
 		if err != nil {
 			log.Printf(err.Error())
@@ -166,13 +164,12 @@ func parseSockaddr(addr syscall.Sockaddr) (ip string, port int) {
 	return
 }
 
-func handleCleanup(fdEp int, ln net.Listener) {
+func handleCleanup(multiplexer *io_multiplexing.Epoll, ln net.Listener) {
 	log.Println("Saving data to the disk (Persistence)...")
 	//core.SaveRDB()
 
 	log.Println("Closing connection...")
-	//mux.Close()
-	syscall.Close(fdEp)
+	multiplexer.Close()
 	ln.Close()
 }
 

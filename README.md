@@ -15,6 +15,9 @@ A simple client-server application written in Go using a **thread-per-connection
 
 ![img_2.png](img_2.png)
 
+### Multi-thread with shared nothing architecture
+![img_6.png](img_6.png)
+
 ### Basic function with redis-cli
 ![img_3.png](img_3.png)
 

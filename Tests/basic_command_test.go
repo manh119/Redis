@@ -11,7 +11,7 @@ import (
 
 // Khởi tạo client dùng chung cho các test
 func SetupClientAndServer() *redis.Client {
-	go server.RunIoMultiplexingServer(&sync.WaitGroup{})
+	go server.RunIoMultiplexingServerMultipleIOHanlder(&sync.WaitGroup{})
 	time.Sleep(200 * time.Millisecond)
 
 	return redis.NewClient(&redis.Options{

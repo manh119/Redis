@@ -14,9 +14,9 @@ func main() {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(100)
 
-	go server.RunIoMultiplexingServer(&wg)
+	go server.RunIoMultiplexingServerMultipleIOHanlder(&wg)
 	go server.HandleShutDown(sig, &wg)
 
 	wg.Wait()

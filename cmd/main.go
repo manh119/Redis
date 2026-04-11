@@ -1,24 +1,24 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/manh119/Redis/server"
 )
 
 func main() {
-	wg := sync.WaitGroup{}
-	wg.Add(1)
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
 
 	go server.RunIoMultiplexingServer(&wg)
+	go server.HandleShutDown(sig, &wg)
 
-	<-sig
-	log.Println("shutdown signal received")
-	server.ShutdownAsap.Store(1)
 	wg.Wait()
+	println("Server shutdown successfully. Bye bye.")
 }

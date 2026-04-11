@@ -12,23 +12,23 @@ import (
 // BF.RESERVE key error_rate capacity -> OK
 // (error) ERR item exists
 func HandleRESERVE(cmd *Command) (string, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount != 3 {
 		return "", fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 
-	key := cmd.args[0]
+	key := cmd.Args[0]
 	_, exist := storage.BloomFilterStore[key]
 	if exist {
 		return "", fmt.Errorf("BLOOM FILTER %s already exist", key)
 	}
 
-	errorRate, err := strconv.ParseFloat(cmd.args[1], 64)
+	errorRate, err := strconv.ParseFloat(cmd.Args[1], 64)
 	if err != nil || errorRate <= 0 || errorRate >= 1 {
 		return "", fmt.Errorf("Error rate is not valid value", key)
 	}
 
-	entries, err := strconv.ParseUint(cmd.args[2], 10, 64)
+	entries, err := strconv.ParseUint(cmd.Args[2], 10, 64)
 	if err != nil || entries == 0 {
 		return "", fmt.Errorf("Entries is not valid value", key)
 	}
@@ -43,12 +43,12 @@ func HandleRESERVE(cmd *Command) (string, error) {
 // 2) (integer) 1
 // 3) (integer) 0
 func HandleMADD(cmd *Command) ([]uint64, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount < 2 {
 		return nil, fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 
-	key := cmd.args[0]
+	key := cmd.Args[0]
 
 	_, err := storage.DictStore.Get(key)
 	if err == nil {
@@ -63,12 +63,12 @@ func HandleMADD(cmd *Command) ([]uint64, error) {
 
 	counts := make([]uint64, argCount-1)
 	for i := 1; i < argCount; i++ {
-		if bf.Exist(cmd.args[i]) {
+		if bf.Exist(cmd.Args[i]) {
 			counts[i-1] = 0
 		} else {
 			counts[i-1] = 1
 		}
-		bf.Add(cmd.args[i])
+		bf.Add(cmd.Args[i])
 	}
 
 	return counts, nil
@@ -79,12 +79,12 @@ func HandleMADD(cmd *Command) ([]uint64, error) {
 // 1) (integer) 1
 // 2) (integer) 1
 func HandleMEXISTS(cmd *Command) ([]uint64, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount < 2 {
 		return nil, fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 
-	key := cmd.args[0]
+	key := cmd.Args[0]
 	bf, exist := storage.BloomFilterStore[key]
 	counts := make([]uint64, argCount-1)
 	if !exist {
@@ -92,7 +92,7 @@ func HandleMEXISTS(cmd *Command) ([]uint64, error) {
 	}
 
 	for i := 1; i < argCount; i++ {
-		if bf.Exist(cmd.args[i]) {
+		if bf.Exist(cmd.Args[i]) {
 			counts[i-1] = 1
 		} else {
 			counts[i-1] = 0

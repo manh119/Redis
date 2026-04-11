@@ -10,11 +10,11 @@ import (
 // => cmd = set, args = ["key", "value", "EX", "100"]
 type Command struct {
 	Cmd  string
-	args []string
+	Args []string
 }
 
 func NewCommand(cmd string, args []string) *Command {
-	return &Command{Cmd: cmd, args: args}
+	return &Command{Cmd: cmd, Args: args}
 }
 
 func HandleCommand(decodeRequest any) (any, error) {

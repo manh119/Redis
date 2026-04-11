@@ -78,7 +78,7 @@ func (handler *IOHander) handleCommand(multiplexer *io_multiplexing.Epoll, fd in
 
 	// n == 0 nghĩa là client đóng connection
 	if n == 0 {
-		multiplexer.Close()
+		//multiplexer.Close()
 		err := syscall.Close(fd)
 		if err != nil {
 			log.Printf(err.Error())
@@ -120,7 +120,7 @@ func getKey(err error, buffer []byte, n int) (string, bool) {
 		log.Printf("Error decode")
 		return "", true
 	}
-	log.Printf("decodedMess: %s", decodeRequest)
+	//log.Printf("decodedMess: %s", decodeRequest)
 	arr, ok := decodeRequest.([]any)
 	if !ok || decodeRequest == nil || len(arr) == 0 {
 		log.Printf("Error decode")

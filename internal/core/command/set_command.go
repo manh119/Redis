@@ -10,12 +10,12 @@ import (
 
 // SADD key 1 2 3 4 5 -> 5
 func HandleSetAdd(cmd *Command) (int, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount < 1 {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
-	key := cmd.args[0]
-	existInDict := storage.DictStore.Exists(cmd.args[:1])
+	key := cmd.Args[0]
+	existInDict := storage.DictStore.Exists(cmd.Args[:1])
 	if existInDict > 0 {
 		return 0, errors.New("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
@@ -24,20 +24,20 @@ func HandleSetAdd(cmd *Command) (int, error) {
 		set = data_structure.NewSet()
 		storage.SetStore[key] = set
 	}
-	added := set.Add(cmd.args[1:]...)
+	added := set.Add(cmd.Args[1:]...)
 	return added, nil
 }
 
 // SISMEMBER key valueExist -> 1
 // SISMEMBER key valueNotExist -> 0
 func HandleSISMEMBER(cmd *Command) (int, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount != 2 {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
 
-	key := cmd.args[0]
-	value := cmd.args[1]
+	key := cmd.Args[0]
+	value := cmd.Args[1]
 
 	set, exists := storage.SetStore[key]
 	if exists && set.IsMember(value) {
@@ -48,26 +48,26 @@ func HandleSISMEMBER(cmd *Command) (int, error) {
 
 // SREM key value1 value2 -> 2
 func HandleSREM(cmd *Command) (int, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount < 1 {
 		return 0, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
-	key := cmd.args[0]
+	key := cmd.Args[0]
 	set, exists := storage.SetStore[key]
 	if !exists {
 		return 0, nil
 	}
-	removed := set.Remove(cmd.args[1:]...)
+	removed := set.Remove(cmd.Args[1:]...)
 	return removed, nil
 }
 
 // SMEMBERS key -> list member
 func HandleSMEMBERS(cmd *Command) ([]string, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount != 1 {
 		return nil, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", cmd.Cmd))
 	}
-	key := cmd.args[0]
+	key := cmd.Args[0]
 	set, exists := storage.SetStore[key]
 	if !exists {
 		return nil, nil

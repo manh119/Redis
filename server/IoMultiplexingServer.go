@@ -72,8 +72,8 @@ func RunIoMultiplexingServer(wg *sync.WaitGroup) {
 
 func handleNewConnection(multiplexer *io_multiplexing.Epoll, fdListener int) {
 	fdConn, connAdrr, err := syscall.Accept(fdListener)
-	ip, port := parseSockaddr(connAdrr)
-	log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
+	//ip, port := parseSockaddr(connAdrr)
+	//log.Printf("new connection fd=%d from %s:%d", fdConn, ip, port)
 	if err != nil {
 		log.Printf("error connect to %s with error : %s", connAdrr, err.Error())
 		return
@@ -95,7 +95,7 @@ func handleClientCommand(multiplexer *io_multiplexing.Epoll, fd int) {
 
 	// n == 0 nghĩa là client đóng connection
 	if n == 0 {
-		multiplexer.Close()
+		//multiplexer.Close()
 		err := syscall.Close(fd)
 		if err != nil {
 			log.Printf(err.Error())
@@ -118,7 +118,7 @@ func handleClientCommand(multiplexer *io_multiplexing.Epoll, fd int) {
 		log.Printf("Error decode")
 		return
 	}
-	log.Printf("decodedMess: %s", decodeRequest)
+	//log.Printf("decodedMess: %s", decodeRequest)
 
 	// 2. read command
 	response, err := command.HandleCommand(decodeRequest)
@@ -145,7 +145,7 @@ func handleClientCommand(multiplexer *io_multiplexing.Epoll, fd int) {
 	}
 
 	// 4. response
-	log.Printf("encodeMess: %s", encodedRes)
+	//log.Printf("encodeMess: %s", encodedRes)
 	syscall.Write(fd, []byte(encodedRes))
 }
 

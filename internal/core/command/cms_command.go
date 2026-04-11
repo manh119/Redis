@@ -13,23 +13,23 @@ import (
 
 // CMS.INITBYPROB key error probability
 func HandleINITBYPROB(cmd *Command) (string, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount != 3 {
 		return "", fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 
-	key := cmd.args[0]
+	key := cmd.Args[0]
 	_, exist := storage.CmsStore[key]
 	if exist {
 		return "", fmt.Errorf("CMS: %s already exists", key)
 	}
 
-	errorCms, err := strconv.ParseFloat(cmd.args[1], 64)
+	errorCms, err := strconv.ParseFloat(cmd.Args[1], 64)
 	if err != nil || errorCms <= 0 || errorCms >= 1 {
 		return "", fmt.Errorf("Invalid argument error value")
 	}
 
-	probCms, err := strconv.ParseFloat(cmd.args[2], 64)
+	probCms, err := strconv.ParseFloat(cmd.Args[2], 64)
 	if err != nil || probCms <= 0 || probCms >= 1 {
 		return "", fmt.Errorf("Invalid argument probability value")
 	}
@@ -40,12 +40,12 @@ func HandleINITBYPROB(cmd *Command) (string, error) {
 
 // CMS.INCRBY key item increment [item increment ...]
 func HandleINCRBY(cmd *Command) ([]uint64, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount < 3 || (argCount-1)%2 != 0 {
 		return nil, fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 
-	key := cmd.args[0]
+	key := cmd.Args[0]
 	cms, exist := storage.CmsStore[key]
 	if !exist {
 		return nil, fmt.Errorf("CMS %s doesn't exist", key)
@@ -53,8 +53,8 @@ func HandleINCRBY(cmd *Command) ([]uint64, error) {
 
 	counts := make([]uint64, (argCount-1)/2)
 	for i := 1; i < argCount; i = i + 2 {
-		item := cmd.args[i]
-		increment, err := strconv.ParseUint(cmd.args[i+1], 10, 64)
+		item := cmd.Args[i]
+		increment, err := strconv.ParseUint(cmd.Args[i+1], 10, 64)
 		if err != nil {
 			return nil, errors.New("value increment is not a valid float")
 		}
@@ -67,12 +67,12 @@ func HandleINCRBY(cmd *Command) ([]uint64, error) {
 
 // CMS.QUERY key item item1 item2
 func HandleQUERY(cmd *Command) ([]uint64, error) {
-	argCount := len(cmd.args)
+	argCount := len(cmd.Args)
 	if argCount < 2 {
 		return nil, fmt.Errorf("ERR wrong number of arguments for '%s' command", cmd.Cmd)
 	}
 
-	key := cmd.args[0]
+	key := cmd.Args[0]
 	cms, exist := storage.CmsStore[key]
 	if !exist {
 		return nil, fmt.Errorf("CMS %s doesn't exist", key)
@@ -80,7 +80,7 @@ func HandleQUERY(cmd *Command) ([]uint64, error) {
 
 	counts := make([]uint64, argCount-1)
 	for i := 1; i < argCount; i++ {
-		count := cms.Query(cmd.args[i])
+		count := cms.Query(cmd.Args[i])
 		counts[i-1] = count
 	}
 

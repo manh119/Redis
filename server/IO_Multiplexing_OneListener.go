@@ -1,13 +1,18 @@
 package server
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 
 	"github.com/manh119/Redis/internal/config"
+	storage "github.com/manh119/Redis/internal/core"
 	"github.com/manh119/Redis/internal/core/command"
 	"github.com/manh119/Redis/internal/core/data_structure"
 	"github.com/manh119/Redis/internal/core/io_multiplexing"
@@ -55,10 +60,10 @@ func (wk *Workers) run() {
 					log.Printf("Error decode")
 					continue
 				}
-				log.Printf("decodedMess: %s", decodeRequest)
+				//log.Printf("decodedMess: %s", decodeRequest)
 
 				// 2. read command
-				response, err := command.HandleCommand(decodeRequest)
+				response, err := wk.workers[index].HandleCommand(decodeRequest)
 
 				if err != nil {
 					log.Printf(err.Error())
@@ -83,7 +88,7 @@ func (wk *Workers) run() {
 				}
 
 				// 4. response
-				log.Printf("encodeMess: %s", encodedRes)
+				//log.Printf("encodeMess: %s", encodedRes)
 				wk.workers[index].replyChan <- []byte(encodedRes)
 			}
 		}(i)
@@ -150,4 +155,75 @@ func RunIoMultiplexingServerMultipleIOHanlder(wg *sync.WaitGroup) {
 			}
 		}
 	}
+}
+
+func (worker *Worker) HandleCommand(decodeRequest any) (any, error) {
+	arr, ok := decodeRequest.([]any)
+	if !ok || decodeRequest == nil || len(arr) == 0 {
+		return "", errors.New("invalid command")
+	}
+
+	cmdName, cmd := convertToCommand(arr)
+
+	switch cmdName {
+	case "GET":
+		return worker.HandleGet(cmd)
+	case "SET":
+		return worker.HandleSet(cmd)
+	default:
+		return "", errors.New("invalid command")
+	}
+}
+
+func (worker *Worker) HandleGet(cmd *command.Command) (string, error) {
+	if len(cmd.Args) == 1 {
+		key := cmd.Args[0]
+		value, err := worker.dictStore.Get(key)
+		if err != nil {
+			return "", err
+		}
+		return value, nil
+	}
+	return "", errors.New("invalid command")
+}
+
+// set key value
+// set key value EX ttl
+func (worker *Worker) HandleSet(cmd *command.Command) (string, error) {
+	argCount := len(cmd.Args)
+	if argCount != 2 && argCount != 4 {
+		return "", errors.New("ERR wrong number of arguments for 'set' command")
+	}
+	key := cmd.Args[0]
+	value := cmd.Args[1]
+	var ttl int64 = -1
+	if argCount == 4 {
+		ttlStr := cmd.Args[3]
+		parsedTTL, err := strconv.ParseInt(ttlStr, 10, 64)
+		if err != nil {
+			return "", errors.New("ERR value is not an integer or out of range")
+		}
+		ttl = parsedTTL
+		if strings.ToUpper(cmd.Args[2]) == "EX" {
+			storage.DictStore.Set(key, value, ttl*1000)
+		} else if strings.ToUpper(cmd.Args[2]) == "PX" { // ttl in miliSecond
+			storage.DictStore.Set(key, value, ttl)
+		} else {
+			return "", errors.New("ERR unknown command")
+		}
+	}
+	worker.dictStore.Set(key, value, ttl)
+	return "OK", nil
+}
+
+func convertToCommand(arr []any) (string, *command.Command) {
+	cmdName := arr[0].(string)
+	cmdName = strings.ToUpper(cmdName)
+	var args []string
+	for i := 1; i < len(arr); i++ {
+		args = append(args, fmt.Sprintf("%v", arr[i]))
+	}
+
+	cmd := command.NewCommand(cmdName, args)
+	return cmdName, cmd
 }

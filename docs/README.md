@@ -72,3 +72,14 @@ redis-cli -p 4000
 - [ ] Pub/Sub messaging
 - [ ] Replication
 - [ ] Cluster support
+
+---
+
+
+## 💬✨  Support & Feedback
+
+- [Star repo](https://github.com/manh119/Redis/stargazers) if you find it usefully
+   
+
+
+

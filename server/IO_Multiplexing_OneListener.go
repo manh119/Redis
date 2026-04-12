@@ -66,7 +66,7 @@ func (wk *Workers) run() {
 				response, err := wk.workers[index].HandleCommand(decodeRequest)
 
 				if err != nil {
-					log.Printf(err.Error())
+					//log.Printf(err.Error())
 					if err.Error() == config.NILL {
 						wk.workers[index].replyChan <- []byte(config.NILL)
 						continue
@@ -127,7 +127,7 @@ func RunIoMultiplexingServerMultipleIOHanlder(wg *sync.WaitGroup) {
 
 	// 3. start list of IO handler
 	workers := NewListWorkers(3)
-	IOHandler := NewIOHandler(3, workers.workers)
+	IOHandler := NewIOHandler(2, workers.workers)
 
 	// 4. wait for new event in the epoll, event loop
 	for {
@@ -176,6 +176,10 @@ func (worker *Worker) HandleCommand(decodeRequest any) (any, error) {
 }
 
 func (worker *Worker) HandleGet(cmd *command.Command) (string, error) {
+	count := 0
+	for i := 0; i < 100000; i++ {
+		count += i
+	}
 	if len(cmd.Args) == 1 {
 		key := cmd.Args[0]
 		value, err := worker.dictStore.Get(key)

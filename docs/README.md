@@ -1,173 +1,76 @@
-# High Performance Redis in Go
+# A high-performance, distributed in-memory key-value store built in Go
 
-A simple client-server application written in Go using a **thread-per-connection model** where each client connection is handled in its own goroutine.
 
-## Architecture
+![img_2.png](img_2.png)
 
-### Thread-Per-Connection Model
-![img_1.png](image/ThreadPerConnection.png)
 
-### Thread-Pool Model
+## 🏗️ Architecture
 
-![img.png](image/threadPoolArchitect.png)
+![img.png](docs/img.png)
 
-### Multiplexing model
+Detailed explanation with diagrams is available in [docs/architecture.md](docs/architecture.md).
 
-![img_2.png](image/EpollMonitor.png)
+## ⚙️ Features
 
-### Multi-thread with shared nothing architecture
-![img_6.png](image/sharedNothingArchitecture.png)
+- **RESP Protocol**  
+  Full support for Redis Serialization Protocol.
 
-### Basic function with redis-cli
-![img_3.png](image/basicCommand.png)
+- **Data Structures**
+    - Hash dictionary
+    - SkipList (for sorted sets)
+    - Bloom Filter
+    - Count-Min Sketch
+    - Eviction Pool
 
-### Skip list for sorted set
-![img_4.png](image/SkipList.png)
+- **Concurrency Models**
+    - Single-threaded IO-bound
+    - Epoll-based IO multiplexing
+    - Thread-per-connection
+    - Thread pool architecture
 
-### Count min sketch for 100M element ~ 8MB
-![img_5.png](image/countMinSketch.png)
-## Project Structure
+- **Graceful Shutdown**  
+  - With resource cleanup.
 
-```
-redis-clone/
-├── server/
-│   └── main.go          # Server implementation
-├── client/
-│   └── main.go          # Client implementation
-├── go.mod              # Go module file
-└── README.md           # This file
-```
+- **Benchmarking & Profiling**
+    - CPU-bound vs IO-bound workloads
+    - Multi-thread vs single-thread performance
+    - Visualizations with `pprof`
 
-## Building the Project
 
-```bash
-# Build server
-go build -o server ./server
+## 📌 Supported Commands
 
-# Build client
-go build -o client ./client
-```
+| Data Structure            | Commands |
+|---------------------------|----------|
+| **Key-Value Store**       | `PING`, `GET`, `SET`, `TTL`, `EXPIRE`, `DEL`, `EXISTS`, `FLUSHDB`, `PERSIST` |
+| **Set**                   | `SADD`, `SISMEMBER`, `SREM`, `SMEMBERS` |
+| **Sorted Set (SkipList)** | `ZADD`, `ZSCORE`, `ZRANK` |
+| **Count-Min Sketch (CMS)**| `CMS.INITBYPROB`, `CMS.INCRBY`, `CMS.QUERY` |
+| **Bloom Filter (BF)**     | `BF.RESERVE`, `BF.MADD`, `BF.MEXISTS` |
 
-## Running the Project
+## 📊 Benchmarks with 1M request
 
-### Terminal 1: Start the Server
-```bash
-go run ./server/main.go
-# Output: Server listening on :8080
-```
+**Highlights:**
+- **Single-thread IO-bound**: Efficient for lightweight workloads.
+- **Thread pool architecture**: Scales better under heavy concurrent connections.
+- **Bloom Filter & CMS**: Sub-linear memory usage with probabilistic guarantees.
 
-### Terminal 2: Run the Client(s)
-```bash
-go run ./client/main.go
-```
+![img_1.png](docs/benchmark.png)
 
-You can open **multiple terminals** and run multiple clients simultaneously!
+Full benchmark results and profiling visualizations are in [docs/benchmark.md](docs/benchmark.md).
 
-## Supported Commands
-
-| Command | Example | Description |
-|---------|---------|-------------|
-| **SET** | `SET key value` | Store a key-value pair |
-| **GET** | `GET key` | Retrieve value for a key |
-| **DELETE** | `DELETE key` | Remove a key-value pair |
-| **LIST** | `LIST` | Show all keys in store |
-| **PING** | `PING` | Server health check |
-| **QUIT** | `QUIT` | Disconnect from server |
-
-## Example Session
-
-```
-Connected to server at localhost:8080
-Enter command: SET user1 Alice
-Server: OK: Set user1 = Alice
-Enter command: SET user2 Bob
-Server: OK: Set user2 = Bob
-Enter command: GET user1
-Server: OK: Alice
-Enter command: LIST
-Server: OK: Keys: user1, user2
-Enter command: DELETE user1
-Server: OK: Deleted user1
-Enter command: QUIT
-Exiting...
-```
-
-## Features
-
-### ✅ Thread-Per-Connection Model
-- Each client connection runs in its own goroutine
-- Non-blocking concurrent handling of multiple clients
-- Efficient resource utilization with Go's lightweight goroutines
-
-### ✅ Thread-Safe Operations
-- `sync.RWMutex` protects shared key-value store
-- Multiple readers can access data simultaneously
-- Exclusive access during write operations
-
-### ✅ Multiple Request Support
-- Clients can send multiple requests sequentially
-- Server processes each request independently
-- Full-duplex communication
-
-### ✅ Error Handling
-- Invalid commands are caught and reported
-- Missing keys are handled gracefully
-- Connection errors are logged
-
-## Implementation Details
-
-### Server (`server/main.go`)
-
-1. **Main Loop**: Accepts incoming connections in a loop
-2. **Goroutine per Connection**: Each accepted connection spawns a new goroutine
-3. **Request Processing**: Reads commands, processes them, and sends responses
-4. **Concurrency Control**: Uses `sync.RWMutex` for thread-safe access to the store
-
-```go
-for {
-    conn, err := listener.Accept()
-    go handleConnection(conn)  // Thread-per-connection
-}
-```
-
-### Client (`client/main.go`)
-
-- Connects to the server
-- Provides interactive command prompt
-- Sends commands and receives responses
-- Supports synchronous and asynchronous request patterns
-
-## Testing
-
-### Test Multiple Concurrent Clients
+## ▶️ Quick Start within 10s
 
 ```bash
-# Terminal 1
-go run ./server/main.go
+git clone https://github.com/manh119/Redis.git
+cd Redis
+go run cmd/main.go
 
-# Terminal 2
-go run ./client/main.go
-
-# Terminal 3
-go run ./client/main.go
-
-# Terminal 4
-go run ./client/main.go
+# Connect to server using Redis CLI
+redis-cli -p 4000
 ```
 
-Each terminal can send commands simultaneously and the server handles them concurrently.
-
-### Performance Notes
-
-- Can handle hundreds of concurrent connections
-- Minimal memory overhead per connection (goroutines are lightweight)
-- Mutex contention only during store access (< 1ms typically)
-
-## Future Enhancements
-
+## 🚀 Future Enhancements
 - [ ] Persistent storage (file-based or database)
-- [ ] Expiration times for keys (TTL)
-- [ ] Data types support (lists, sets, hashes)
 - [ ] Pub/Sub messaging
 - [ ] Replication
 - [ ] Cluster support

@@ -19,8 +19,8 @@ type IOHander struct {
 
 func (handler *IOHander) addNewConnection(fdListener int) error {
 	fdNewCon, connAdrr, err := syscall.Accept(fdListener)
-	ip, port := parseSockaddr(connAdrr)
-	log.Printf("new connection fd=%d from %s:%d", fdNewCon, ip, port)
+	//ip, port := parseSockaddr(connAdrr)
+	//log.Printf("new connection fd=%d from %s:%d", fdNewCon, ip, port)
 	if err != nil {
 		log.Printf("error connect to %s with error : %s", connAdrr, err.Error())
 		return err

@@ -31,6 +31,11 @@ func HandlePing(cmd *Command) (string, error) {
 }
 
 func HandleGet(cmd *Command) (string, error) {
+	count := 0
+	for i := 0; i < 100000; i++ {
+		count += i
+	}
+
 	if len(cmd.Args) == 1 {
 		key := cmd.Args[0]
 		value, err := storage.DictStore.Get(key)

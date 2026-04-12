@@ -1,0 +1,107 @@
+<pre>====== SET ======
+  1000000 requests completed in 20.73 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+  multi-thread: no
+</pre>
+
+<pre>====== GET ======
+  1000000 requests completed in 21.12 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+  multi-thread: no
+</pre>
+
+<h1>
+    single thread i/o bound
+</h1>
+
+<pre>Summary:
+  throughput summary: 48248.58 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.556     0.112     0.463     0.823     1.615    16.591
+</pre>
+
+
+<pre>Summary:
+  throughput summary: 47337.28 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.548     0.200     0.479     0.743     1.167     7.207
+</pre>
+
+<h1>
+    single thread cpu bound
+</h1>
+
+
+
+<textarea>
+    // Giả sử đây là hàm xử lý GET của bạn
+func (w *Worker) cmdGET(key string) {
+    // Giả lập tác vụ nặng (CPU Bound)
+    // Tính toán vô nghĩa nhưng tốn tài nguyên
+    count := 0
+    for i := 0; i < 1000000; i++ {
+        count += i
+    }
+
+    // Logic lấy dữ liệu thật
+    val := db.Get(key)
+    w.respond(val)
+}
+</textarea>
+<h2>SET</h2>
+<pre>Summary:
+  throughput summary: 48914.11 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.546     0.080     0.471     0.791     1.495    21.887</pre>
+
+
+
+<h2>GET</h2>
+<pre>Summary:
+  throughput summary: 9778.99 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        5.098     1.112     4.967     7.351    10.631    49.439
+</pre>
+
+
+<h1>Multiple thread i/o bound, cpu 4 core, 3 worker, 2 io handler</h1>
+<h2>SET</h2>
+<pre>Summary:
+  throughput summary: 40561.37 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.728     0.040     0.615     1.167     3.295    36.671</pre>
+
+
+<h2>GET</h2>
+<pre>Summary:
+  throughput summary: 39996.80 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.729     0.056     0.615     1.111     3.415    37.983
+</pre>
+
+<h1>Multi thread cpu bound</h1>
+<h2>SET</h2>
+<pre>Summary:
+  throughput summary: 38317.11 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.815     0.048     0.631     1.847     4.063    35.135
+</pre>
+
+<h2>GET</h2>
+<pre>Summary:
+  throughput summary: 17869.27 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        2.775     0.096     2.519     4.895     6.831   111.551
+</pre>

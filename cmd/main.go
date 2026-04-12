@@ -19,7 +19,9 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	go server.RunIoMultiplexingServer(&wg)
+	// go server.RunIoMultiplexingServer(&wg) // single thread
+
+	go server.RunIoMultiplexingServerMultipleIOHanlder(&wg) // multiple thread
 	go server.HandleShutDown(sig, &wg)
 
 	go func() {

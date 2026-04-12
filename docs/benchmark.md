@@ -1,48 +1,112 @@
----
-
-### 📊 Performance Benchmarks (1,000,000 Requests)
-
-This section documents the performance characteristics of **Nietzsche** under different architectural configurations and workloads.
+## 📊 Performance Benchmarks (1,000,000 Requests)
 
 ---
 
-### 🟢 Scenario 1: Single-threaded (I/O Bound)
-*This is the baseline configuration where the execution logic runs on a single event loop, simulating the standard Redis threading model.*
+### 🖥️ Benchmark Environment (My laptop)
 
-#### 1. Benchmark Results
-Tests were conducted using `redis-benchmark` with **50 parallel clients**, **3-byte payloads**, and **keep-alive** enabled.
+- **CPU**: Intel(R) Core(TM) i5-6300U @ 2.40GHz
+    - 2 cores 
+    - Base frequency: 2.40 GHz, Max Turbo: 3.0 GHz
+
+- **Memory**: 16 GB DDR4
+- **Storage**: SSD (system drive)
+- **OS**: Ubuntu 24.04 LTS (Linux kernel 6.17.0-20-generic)
+- **Go Version**: go1.22.2 linux/amd64
+- **Benchmark Tool**: `redis-benchmark`
+    - 1,000,000 requests
+    - 50 parallel clients
+    - 3-byte payloads
+
+---
+
+### 🧩 Scenario 1: Single-threaded (I/O Bound)
+
 
 | Command | Throughput (RPS) | Avg Latency | P50 | P95 | P99 | Max |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SET** | **34,164.67** | 0.779 ms | 0.671 ms | 1.127 ms | 3.103 ms | 25.807 ms |
-| **GET** | **34,900.36** | 0.746 ms | 0.671 ms | 1.031 ms | 1.727 ms | 10.727 ms |
+|:--------|:----------------:|:------------:|:----:|:----:|:----:|:----:|
+| **SET** | 48,248.58 | 0.556 ms | 0.463 | 0.823 | 1.615 | 16.591 |
+| **GET** | 47,337.28 | 0.548 ms | 0.479 | 0.743 | 1.167 | 7.207 |
 
-#### 2. CPU Profiling & Deep Dive
-To identify internal bottlenecks, I captured a CPU profile using `pprof` during the peak of the GET benchmark.
+**Insights:**
+- Sub-millisecond average latency.
+- Stable tail latency (P99 < 2ms).
+- Ideal for lightweight (76.73% is IO operation), high-frequency key-value operations.
 
-[![CPU Profile Graph](image/singleThreadIoBound.png)](image/pprof001_single_thread_io_bound.svg)
-*Figure 1: Flame graph showing hotspots during the GET benchmark. Click the image to view the interactive SVG.*
+![Single Thread I/O Bound](image/pprof_single_thread_io_bound.png)  
+[View SVG](image/pprof_single_thread_io_bound.svg)
+---
 
-**Key Insights from Profiling:**
+### 🧠 Scenario 2: Single-threaded (CPU Bound)
+*Simulates heavy computation per request in GET command.*
+```bash
+func (w *Worker) cmdGET(key string) {
+    count := 0
+    for i := 0; i < 1000000; i++ {
+      count += i
+    }
+    ...
+}
+```
 
-* **System Call Dominance (~48%):** Nearly half of the CPU time is consumed by `linuxSyscall` (specifically `read` and `write`). This indicates the application is highly efficient, as the primary bottleneck is the **OS kernel's network stack**, not the user-space logic.
-* **Highly Optimized RESP Parsing:** The custom RESP decoder (`core.DecodeOne`) and command dispatcher account for less than **5%** of total CPU usage. This proves the efficiency of the byte-level protocol handling.
-* **Sub-millisecond Tail Latency:** The average latency remains under **0.8ms**. The stable P99 (1.7ms for GET) demonstrates consistent performance under load. Minor spikes (Max Latency 25ms) are typical for Go's Garbage Collection (GC) or OS-level context switching.
+| Command | Throughput (RPS) | Avg Latency | P50 | P95 | P99 | Max |
+|:--------|:----------------:|:------------:|:----:|:----:|:----:|:----:|
+| **SET** | 48,914.11 | 0.546 ms | 0.471 | 0.791 | 1.495 | 21.887 |
+| **GET** | 9,778.99 | 5.098 ms | 4.967 | 7.351 | 10.631 | 49.439 |
 
-**Technical Conclusion:**
-In this scenario, Nietzsche is **I/O bound**. The single-threaded execution model is sufficient to saturate the available network throughput without the overhead of lock contention or complex synchronization, making it an ideal choice for high-frequency, low-latency key-value operations.
+**Insights:**
+- CPU-bound (83.41% is commandGET func) workloads show clear throughput degradation (48k rps -> 9k rps).
+- Demonstrates the impact of computation-heavy tasks on latency.
+
+![Single Thread CPU Bound](image/pprof_single_thread_cpu_bound.png)  
+[View interactive SVG](image/pprof_single_thread_cpu_bound.svg)
 
 ---
 
+### ⚙️ Scenario 3: Multi-threaded I/O Bound (3 workers, 2 I/O handlers)
+| Command | Throughput (RPS) | Avg Latency | P50 | P95 | P99 | Max |
+|:--------|:----------------:|:------------:|:----:|:----:|:----:|:----:|
+| **SET** | 40,561.37 | 0.728 ms | 0.615 | 1.167 | 3.295 | 36.671 |
+| **GET** | 39,996.80 | 0.729 ms | 0.615 | 1.111 | 3.415 | 37.983 |
 
-### Benchmark SET performance
+**Insights:**
+- Slightly higher latency single thread due to switch context (12.08%) + garbage collector (13%).
+- Not better (rqs) than single thread model although having more workers in IO bound task 
+
+![Multi Thread I/O Bound](image/pprof_multi_thread_io_bound.png)  
+[View SVG](image/pprof_multi_thread_io_bound.svg)
+
+
+---
+
+### 🔩 Scenario 4: Multi-threaded (CPU Bound)
+*Simulates heavy computation per request in GET command.*
+```bash
+func (w *Worker) cmdGET(key string) {
+    count := 0
+    for i := 0; i < 1000000; i++ {
+      count += i
+    }
+    ...
+}
+```
+| Command | Throughput (RPS) | Avg Latency | P50 | P95 | P99 | Max |
+|:--------|:----------------:|:------------:|:----:|:----:|:----:|:----:|
+| **SET** | 38,317.11 | 0.815 ms | 0.631 | 1.847 | 4.063 | 35.135 |
+| **GET** | 17,869.27 | 2.775 ms | 2.519 | 4.895 | 6.831 | 111.551 |
+
+**Insights:**
+- Throughput of multi-thread is better (17k rps vs 9k rqs) than single thread in CPU bound task (83% is cmdGET)
+
+![Multi Thread CPU Bound](image/pprof_multi_thread_cpu_bound.png)  
+[View SVG](image/pprof_multi_thread_cpu_bound.svg)
+---
+
+### 🧪 Benchmark Commands
+```bash
+go run cmd/main.go
+
 redis-benchmark -p 4000 -t set -n 1000000 -r 1000000
 
-### Benchmark GET performance
 redis-benchmark -p 4000 -t get -n 1000000 -r 1000000
 
-### pprof
 go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
-
-
-

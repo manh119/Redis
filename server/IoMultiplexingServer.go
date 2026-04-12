@@ -123,7 +123,7 @@ func handleClientCommand(multiplexer *io_multiplexing.Epoll, fd int) {
 	// 2. read command
 	response, err := command.HandleCommand(decodeRequest)
 	if err != nil {
-		log.Printf(err.Error())
+		//log.Printf(err.Error())
 		if err.Error() == config.NILL {
 			syscall.Write(fd, []byte(config.NILL))
 			return

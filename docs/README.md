@@ -1,31 +1,31 @@
-# Redis Clone - Go Client-Server Application
+# High Performance Redis in Go
 
 A simple client-server application written in Go using a **thread-per-connection model** where each client connection is handled in its own goroutine.
 
 ## Architecture
 
 ### Thread-Per-Connection Model
-![img_1.png](img_1.png)
+![img_1.png](image/ThreadPerConnection.png)
 
 ### Thread-Pool Model
 
-![img.png](img.png)
+![img.png](image/threadPoolArchitect.png)
 
 ### Multiplexing model
 
-![img_2.png](img_2.png)
+![img_2.png](image/EpollMonitor.png)
 
 ### Multi-thread with shared nothing architecture
-![img_6.png](img_6.png)
+![img_6.png](image/sharedNothingArchitecture.png)
 
 ### Basic function with redis-cli
-![img_3.png](img_3.png)
+![img_3.png](image/basicCommand.png)
 
 ### Skip list for sorted set
-![img_4.png](img_4.png)
+![img_4.png](image/SkipList.png)
 
 ### Count min sketch for 100M element ~ 8MB
-![img_5.png](img_5.png)
+![img_5.png](image/countMinSketch.png)
 ## Project Structure
 
 ```
